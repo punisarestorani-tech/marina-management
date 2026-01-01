@@ -8,8 +8,8 @@ import { cn } from '@/lib/utils';
 import { BerthMapData } from '@/types/database.types';
 import { BoatPlacement, BerthMarker, BOAT_SIZES } from '@/types/boat.types';
 
-// Budva Marina coordinates
-const MARINA_CENTER: LatLngExpression = [42.2886, 18.8400];
+// Marina center - based on A-06 berth position
+const MARINA_CENTER: LatLngExpression = [42.2875, 18.8405];
 const DEFAULT_ZOOM = 19;
 
 // Tile layer options
@@ -316,20 +316,13 @@ function MapEventHandler({
   return null;
 }
 
-// Component to handle map centering - centers on berth markers if available
-function MapController({ berthMarkers }: { berthMarkers?: BerthMarker[] }) {
+// Component to handle map centering - fixed center
+function MapController() {
   const map = useMap();
 
   useEffect(() => {
-    // Calculate center based on berth markers
-    if (berthMarkers && berthMarkers.length > 0) {
-      const avgLat = berthMarkers.reduce((sum, m) => sum + m.position.lat, 0) / berthMarkers.length;
-      const avgLng = berthMarkers.reduce((sum, m) => sum + m.position.lng, 0) / berthMarkers.length;
-      map.setView([avgLat, avgLng], DEFAULT_ZOOM);
-    } else {
-      map.setView(MARINA_CENTER, DEFAULT_ZOOM);
-    }
-  }, [map, berthMarkers]);
+    map.setView(MARINA_CENTER, DEFAULT_ZOOM);
+  }, [map]);
 
   return null;
 }
@@ -448,7 +441,7 @@ export function MarinaMap({
       zoomControl={true}
       attributionControl={false}
     >
-      <MapController berthMarkers={berthMarkers} />
+      <MapController />
       <MapEventHandler onMapClick={onMapClick} boatPlacementMode={boatPlacementMode} berthMarkerMode={berthMarkerMode} onZoomChange={handleZoomChange} />
 
       {/* User location */}
