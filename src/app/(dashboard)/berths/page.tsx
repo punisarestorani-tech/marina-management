@@ -97,17 +97,17 @@ export default function BerthsPage() {
         .gt('check_out_date', today);
 
       // Create a map of berth_code to booking info
-      const bookingMap = new Map<string, { vessel: string | null; status: string }>();
+      const bookingMap: Record<string, { vessel: string | null; status: string }> = {};
       bookingsData?.forEach((booking) => {
-        bookingMap.set(booking.berth_code, {
+        bookingMap[booking.berth_code] = {
           vessel: booking.vessel_registration,
           status: booking.status === 'checked_in' ? 'occupied' : 'reserved',
-        });
+        };
       });
 
       // Transform data
       const transformedBerths: BerthData[] = (berthsData || []).map((berth: any) => {
-        const booking = bookingMap.get(berth.code);
+        const booking = bookingMap[berth.code];
         const pontoonCode = berth.code.split('-')[0] || 'A';
 
         return {
