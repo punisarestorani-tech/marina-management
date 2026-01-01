@@ -1,0 +1,105 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000">
+  <!-- Background - water -->
+  <rect fill="#1e4a6e" width="1000" height="1000"/>
+
+  <!-- Water texture lines -->
+  <g stroke="#2a5980" stroke-width="1" opacity="0.3">
+    <line x1="0" y1="50" x2="1000" y2="50"/>
+    <line x1="0" y1="100" x2="1000" y2="100"/>
+    <line x1="0" y1="150" x2="1000" y2="150"/>
+    <line x1="0" y1="200" x2="1000" y2="200"/>
+    <line x1="0" y1="250" x2="1000" y2="250"/>
+    <line x1="0" y1="300" x2="1000" y2="300"/>
+    <line x1="0" y1="350" x2="1000" y2="350"/>
+    <line x1="0" y1="400" x2="1000" y2="400"/>
+    <line x1="0" y1="450" x2="1000" y2="450"/>
+    <line x1="0" y1="500" x2="1000" y2="500"/>
+    <line x1="0" y1="550" x2="1000" y2="550"/>
+    <line x1="0" y1="600" x2="1000" y2="600"/>
+    <line x1="0" y1="650" x2="1000" y2="650"/>
+    <line x1="0" y1="700" x2="1000" y2="700"/>
+    <line x1="0" y1="750" x2="1000" y2="750"/>
+    <line x1="0" y1="800" x2="1000" y2="800"/>
+    <line x1="0" y1="850" x2="1000" y2="850"/>
+    <line x1="0" y1="900" x2="1000" y2="900"/>
+    <line x1="0" y1="950" x2="1000" y2="950"/>
+  </g>
+
+  <!-- Shore/land -->
+  <rect fill="#8b7355" x="0" y="0" width="80" height="1000"/>
+  <rect fill="#a08060" x="0" y="0" width="70" height="1000"/>
+
+  <!-- Pontoon A -->
+  <rect fill="#8b4513" x="100" y="80" width="80" height="620" rx="5"/>
+  <text x="140" y="60" fill="#ffffff" font-size="24" font-weight="bold" text-anchor="middle">A</text>
+
+  <!-- Pontoon B -->
+  <rect fill="#8b4513" x="350" y="80" width="80" height="620" rx="5"/>
+  <text x="390" y="60" fill="#ffffff" font-size="24" font-weight="bold" text-anchor="middle">B</text>
+
+  <!-- Pontoon C -->
+  <rect fill="#8b4513" x="600" y="80" width="80" height="620" rx="5"/>
+  <text x="640" y="60" fill="#ffffff" font-size="24" font-weight="bold" text-anchor="middle">C</text>
+
+  <!-- Berth markers - Pontoon A -->
+  <g fill="none" stroke="#ffffff" stroke-width="1" opacity="0.5">
+    <rect x="100" y="100" width="80" height="50"/>
+    <rect x="100" y="160" width="80" height="50"/>
+    <rect x="100" y="220" width="80" height="50"/>
+    <rect x="100" y="280" width="80" height="50"/>
+    <rect x="100" y="340" width="80" height="50"/>
+    <rect x="100" y="400" width="80" height="50"/>
+    <rect x="100" y="460" width="80" height="50"/>
+    <rect x="100" y="520" width="80" height="50"/>
+    <rect x="100" y="580" width="80" height="50"/>
+    <rect x="100" y="640" width="80" height="50"/>
+  </g>
+
+  <!-- Berth markers - Pontoon B -->
+  <g fill="none" stroke="#ffffff" stroke-width="1" opacity="0.5">
+    <rect x="350" y="100" width="80" height="50"/>
+    <rect x="350" y="160" width="80" height="50"/>
+    <rect x="350" y="220" width="80" height="50"/>
+    <rect x="350" y="280" width="80" height="50"/>
+    <rect x="350" y="340" width="80" height="50"/>
+    <rect x="350" y="400" width="80" height="50"/>
+    <rect x="350" y="460" width="80" height="50"/>
+    <rect x="350" y="520" width="80" height="50"/>
+    <rect x="350" y="580" width="80" height="50"/>
+    <rect x="350" y="640" width="80" height="50"/>
+  </g>
+
+  <!-- Berth markers - Pontoon C -->
+  <g fill="none" stroke="#ffffff" stroke-width="1" opacity="0.5">
+    <rect x="600" y="100" width="80" height="50"/>
+    <rect x="600" y="160" width="80" height="50"/>
+    <rect x="600" y="220" width="80" height="50"/>
+    <rect x="600" y="280" width="80" height="50"/>
+    <rect x="600" y="340" width="80" height="50"/>
+    <rect x="600" y="400" width="80" height="50"/>
+    <rect x="600" y="460" width="80" height="50"/>
+    <rect x="600" y="520" width="80" height="50"/>
+    <rect x="600" y="580" width="80" height="50"/>
+    <rect x="600" y="640" width="80" height="50"/>
+  </g>
+
+  <!-- Marina building -->
+  <rect fill="#4a4a4a" x="850" y="850" width="120" height="120" rx="5"/>
+  <text x="910" y="920" fill="#ffffff" font-size="14" text-anchor="middle">MARINA</text>
+  <text x="910" y="940" fill="#ffffff" font-size="12" text-anchor="middle">OFFICE</text>
+
+  <!-- Compass -->
+  <g transform="translate(900, 100)">
+    <circle fill="#ffffff" cx="0" cy="0" r="35" opacity="0.2"/>
+    <text x="0" y="-15" fill="#ffffff" font-size="20" font-weight="bold" text-anchor="middle">N</text>
+    <polygon fill="#ffffff" points="0,-10 5,10 0,5 -5,10" opacity="0.8"/>
+  </g>
+
+  <!-- Scale bar -->
+  <g transform="translate(50, 950)">
+    <rect fill="#ffffff" x="0" y="0" width="100" height="4"/>
+    <line stroke="#ffffff" stroke-width="2" x1="0" y1="-5" x2="0" y2="5"/>
+    <line stroke="#ffffff" stroke-width="2" x1="100" y1="-5" x2="100" y2="5"/>
+    <text x="50" y="20" fill="#ffffff" font-size="12" text-anchor="middle">50m</text>
+  </g>
+</svg>
