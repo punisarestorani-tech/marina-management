@@ -171,13 +171,13 @@ export function BerthMarkerPanel({ marker, onClose, onNewBooking }: BerthMarkerP
 
       <CardContent className={`overflow-y-auto ${isMobileView ? 'max-h-[calc(70vh-4rem)] pb-6' : 'max-h-[calc(100vh-12rem)]'}`}>
         <Tabs defaultValue="details" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-2 mb-4">
             <TabsTrigger value="details">Detalji</TabsTrigger>
             <TabsTrigger value="calendar">Kalendar</TabsTrigger>
           </TabsList>
 
           {/* Details Tab */}
-          <TabsContent value="details" className="space-y-4 mt-4">
+          <TabsContent value="details" className="space-y-4 mt-0">
             {/* Current Booking */}
             {currentBooking && (
               <div className="rounded-lg bg-blue-50 dark:bg-blue-950 p-3 space-y-2">
@@ -239,13 +239,13 @@ export function BerthMarkerPanel({ marker, onClose, onNewBooking }: BerthMarkerP
             {berthDetails ? (
               <div className="space-y-3">
                 {/* Amenities */}
-                <div className="flex items-center gap-4">
+                <div className={`flex gap-4 ${isMobileView ? 'flex-col gap-2' : 'items-center'}`}>
                   <div className={`flex items-center gap-1.5 ${berthDetails.has_water ? 'text-blue-500' : 'text-gray-300'}`}>
-                    <Droplets className="w-5 h-5" />
+                    <Droplets className="w-5 h-5 flex-shrink-0" />
                     <span className="text-sm">{berthDetails.has_water ? 'Voda' : 'Bez vode'}</span>
                   </div>
                   <div className={`flex items-center gap-1.5 ${berthDetails.has_electricity ? 'text-yellow-500' : 'text-gray-300'}`}>
-                    <Zap className="w-5 h-5" />
+                    <Zap className="w-5 h-5 flex-shrink-0" />
                     <span className="text-sm">{berthDetails.has_electricity ? 'Struja' : 'Bez struje'}</span>
                   </div>
                 </div>
@@ -290,7 +290,7 @@ export function BerthMarkerPanel({ marker, onClose, onNewBooking }: BerthMarkerP
           </TabsContent>
 
           {/* Calendar Tab */}
-          <TabsContent value="calendar" className="mt-4">
+          <TabsContent value="calendar" className="mt-0">
             {/* Month Navigation */}
             <div className="flex items-center justify-between mb-4">
               <Button variant="outline" size="icon" onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}>
