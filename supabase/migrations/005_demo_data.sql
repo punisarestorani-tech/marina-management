@@ -87,26 +87,26 @@ ON CONFLICT (registration_number) DO NOTHING;
 -- =====================
 -- BOOKINGS - Aktivne rezervacije
 -- =====================
-INSERT INTO berth_bookings (id, berth_code, check_in_date, check_out_date, guest_name, guest_phone, guest_email, guest_country, vessel_name, vessel_registration, vessel_length, vessel_width, status, payment_status, total_amount, amount_paid, notes) VALUES
+INSERT INTO berth_bookings (id, berth_code, check_in_date, check_out_date, guest_name, guest_phone, guest_email, guest_country, vessel_name, vessel_registration, vessel_length, vessel_width, status, payment_status, price_per_day, total_amount, amount_paid, notes) VALUES
   -- Trenutno prijavljeni (checked_in) - ZAUZETI
-  ('b1000001-0000-0000-0000-000000000001', 'A-01', '2025-12-28', '2026-01-05', 'Marko Petrovic', '+382 67 123 456', 'marko@example.com', 'MNE', 'Jadran I', 'MNE-1001-KT', 6.5, 2.3, 'checked_in', 'paid', 400.00, 400.00, 'Godisnji odmor'),
-  ('b1000002-0000-0000-0000-000000000002', 'A-02', '2025-12-30', '2026-01-07', 'Ivan Horvat', '+385 91 345 678', 'ivan@example.hr', 'CRO', 'Adriatic Star', 'CRO-5421-ST', 7.2, 2.5, 'checked_in', 'paid', 480.00, 480.00, NULL),
-  ('b1000003-0000-0000-0000-000000000003', 'A-04', '2025-12-25', '2026-01-10', 'Marco Rossi', '+39 333 456 789', 'marco@example.it', 'ITA', 'Bella Vita', 'ITA-2234-VE', 12.0, 4.0, 'checked_in', 'partial', 1120.00, 500.00, 'VIP gost'),
-  ('b1000004-0000-0000-0000-000000000004', 'B-01', '2025-12-29', '2026-01-08', 'Nikola Vuckovic', '+382 69 567 890', 'nikola@example.me', 'MNE', 'Boka Queen', 'MNE-2005-HN', 11.5, 3.8, 'checked_in', 'paid', 800.00, 800.00, NULL),
-  ('b1000005-0000-0000-0000-000000000005', 'B-03', '2025-12-27', '2026-01-06', 'Hans Mueller', '+49 172 890 123', 'hans@example.de', 'GER', 'Nord Wind', 'GER-4456-HH', 16.0, 4.8, 'checked_in', 'paid', 900.00, 900.00, 'Premium servis'),
-  ('b1000006-0000-0000-0000-000000000006', 'C-01', '2025-12-26', '2026-01-12', 'Pierre Dubois', '+33 6 901 234', 'pierre@example.fr', 'FRA', 'Cote dAzur', 'FRA-7789-MC', 18.0, 5.2, 'checked_in', 'partial', 2040.00, 1000.00, NULL),
-  ('b1000007-0000-0000-0000-000000000007', 'C-02', '2025-12-20', '2026-01-15', 'James Wilson', '+44 7700 123 456', 'james@example.uk', 'UK', 'Royal Duchess', 'UK-9912-LO', 22.0, 5.8, 'checked_in', 'paid', 3900.00, 3900.00, 'Dugogodisnji klijent'),
-  ('b1000008-0000-0000-0000-000000000008', 'D-01', '2025-12-22', '2026-01-20', 'Robert Johnson', '+1 305 234 5678', 'robert@example.com', 'USA', 'Sea Freedom', 'USA-1122-MI', 25.0, 6.2, 'checked_in', 'paid', 7250.00, 7250.00, 'Super jahta'),
-  ('b1000009-0000-0000-0000-000000000009', 'D-03', '2025-12-15', '2026-01-25', 'Viktor Antonov', '+356 9999 3456', 'viktor@example.mt', 'MLT', 'Mediterranean Dream', 'MLT-5533-VA', 32.0, 7.5, 'checked_in', 'paid', 12300.00, 12300.00, 'Mega jahta - specijalni tretman'),
+  ('b1000001-0000-0000-0000-000000000001', 'A-01', '2025-12-28', '2026-01-05', 'Marko Petrovic', '+382 67 123 456', 'marko@example.com', 'MNE', 'Jadran I', 'MNE-1001-KT', 6.5, 2.3, 'checked_in', 'paid', 50.00, 400.00, 400.00, 'Godisnji odmor'),
+  ('b1000002-0000-0000-0000-000000000002', 'A-02', '2025-12-30', '2026-01-07', 'Ivan Horvat', '+385 91 345 678', 'ivan@example.hr', 'CRO', 'Adriatic Star', 'CRO-5421-ST', 7.2, 2.5, 'checked_in', 'paid', 60.00, 480.00, 480.00, NULL),
+  ('b1000003-0000-0000-0000-000000000003', 'A-04', '2025-12-25', '2026-01-10', 'Marco Rossi', '+39 333 456 789', 'marco@example.it', 'ITA', 'Bella Vita', 'ITA-2234-VE', 12.0, 4.0, 'checked_in', 'partial', 70.00, 1120.00, 500.00, 'VIP gost'),
+  ('b1000004-0000-0000-0000-000000000004', 'B-01', '2025-12-29', '2026-01-08', 'Nikola Vuckovic', '+382 69 567 890', 'nikola@example.me', 'MNE', 'Boka Queen', 'MNE-2005-HN', 11.5, 3.8, 'checked_in', 'paid', 80.00, 800.00, 800.00, NULL),
+  ('b1000005-0000-0000-0000-000000000005', 'B-03', '2025-12-27', '2026-01-06', 'Hans Mueller', '+49 172 890 123', 'hans@example.de', 'GER', 'Nord Wind', 'GER-4456-HH', 16.0, 4.8, 'checked_in', 'paid', 90.00, 900.00, 900.00, 'Premium servis'),
+  ('b1000006-0000-0000-0000-000000000006', 'C-01', '2025-12-26', '2026-01-12', 'Pierre Dubois', '+33 6 901 234', 'pierre@example.fr', 'FRA', 'Cote dAzur', 'FRA-7789-MC', 18.0, 5.2, 'checked_in', 'partial', 120.00, 2040.00, 1000.00, NULL),
+  ('b1000007-0000-0000-0000-000000000007', 'C-02', '2025-12-20', '2026-01-15', 'James Wilson', '+44 7700 123 456', 'james@example.uk', 'UK', 'Royal Duchess', 'UK-9912-LO', 22.0, 5.8, 'checked_in', 'paid', 150.00, 3900.00, 3900.00, 'Dugogodisnji klijent'),
+  ('b1000008-0000-0000-0000-000000000008', 'D-01', '2025-12-22', '2026-01-20', 'Robert Johnson', '+1 305 234 5678', 'robert@example.com', 'USA', 'Sea Freedom', 'USA-1122-MI', 25.0, 6.2, 'checked_in', 'paid', 250.00, 7250.00, 7250.00, 'Super jahta'),
+  ('b1000009-0000-0000-0000-000000000009', 'D-03', '2025-12-15', '2026-01-25', 'Viktor Antonov', '+356 9999 3456', 'viktor@example.mt', 'MLT', 'Mediterranean Dream', 'MLT-5533-VA', 32.0, 7.5, 'checked_in', 'paid', 300.00, 12300.00, 12300.00, 'Mega jahta - specijalni tretman'),
 
   -- Potvrdjene rezervacije (confirmed) - REZERVISANI
-  ('b1000010-0000-0000-0000-000000000010', 'A-05', '2026-01-05', '2026-01-12', 'Ana Djurovic', '+382 68 234 567', 'ana@example.me', 'MNE', 'Morska Vila', 'MNE-1002-BD', 8.0, 2.8, 'confirmed', 'partial', 350.00, 100.00, NULL),
-  ('b1000011-0000-0000-0000-000000000011', 'B-02', '2026-01-08', '2026-01-15', 'Nikos Papadopoulos', '+30 697 678 901', 'nikos@example.gr', 'GRE', 'Poseidon', 'GRE-8812-PI', 13.0, 4.2, 'confirmed', 'pending', 560.00, 0.00, NULL),
-  ('b1000012-0000-0000-0000-000000000012', 'C-05', '2026-01-10', '2026-01-20', 'Al-Rashid Holdings LLC', '+971 50 456 7890', 'charter@alrashid.ae', 'UAE', 'Ocean Emperor', 'CYM-6644-GC', 38.0, 8.2, 'confirmed', 'partial', 4000.00, 2000.00, 'VIP - poseban zahtjev'),
+  ('b1000010-0000-0000-0000-000000000010', 'A-05', '2026-01-05', '2026-01-12', 'Ana Djurovic', '+382 68 234 567', 'ana@example.me', 'MNE', 'Morska Vila', 'MNE-1002-BD', 8.0, 2.8, 'confirmed', 'partial', 50.00, 350.00, 100.00, NULL),
+  ('b1000011-0000-0000-0000-000000000011', 'B-02', '2026-01-08', '2026-01-15', 'Nikos Papadopoulos', '+30 697 678 901', 'nikos@example.gr', 'GRE', 'Poseidon', 'GRE-8812-PI', 13.0, 4.2, 'confirmed', 'unpaid', 80.00, 560.00, 0.00, NULL),
+  ('b1000012-0000-0000-0000-000000000012', 'C-05', '2026-01-10', '2026-01-20', 'Al-Rashid Holdings LLC', '+971 50 456 7890', 'charter@alrashid.ae', 'UAE', 'Ocean Emperor', 'CYM-6644-GC', 38.0, 8.2, 'confirmed', 'partial', 400.00, 4000.00, 2000.00, 'VIP - poseban zahtjev'),
 
   -- Na cekanju (pending)
-  ('b1000013-0000-0000-0000-000000000013', 'A-03', '2026-01-15', '2026-01-22', 'Jure Novak', '+386 41 789 012', 'jure@example.si', 'SLO', 'Triglav', 'SLO-3321-KP', 10.5, 3.5, 'pending', 'pending', 350.00, 0.00, 'Ceka potvrdu'),
-  ('b1000014-0000-0000-0000-000000000014', 'B-05', '2026-01-20', '2026-01-27', 'Dragan Milovic', '+382 67 012 345', 'dragan@example.me', 'MNE', 'Montenegro Pride', 'MNE-3010-TV', 15.0, 7.5, 'pending', 'pending', 560.00, 0.00, 'Katamaran - potrebno odobrenje')
+  ('b1000013-0000-0000-0000-000000000013', 'A-03', '2026-01-15', '2026-01-22', 'Jure Novak', '+386 41 789 012', 'jure@example.si', 'SLO', 'Triglav', 'SLO-3321-KP', 10.5, 3.5, 'pending', 'unpaid', 50.00, 350.00, 0.00, 'Ceka potvrdu'),
+  ('b1000014-0000-0000-0000-000000000014', 'B-05', '2026-01-20', '2026-01-27', 'Dragan Milovic', '+382 67 012 345', 'dragan@example.me', 'MNE', 'Montenegro Pride', 'MNE-3010-TV', 15.0, 7.5, 'pending', 'unpaid', 80.00, 560.00, 0.00, 'Katamaran - potrebno odobrenje')
 ON CONFLICT DO NOTHING;
 
 -- =====================
