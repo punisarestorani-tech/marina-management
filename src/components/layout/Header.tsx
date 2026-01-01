@@ -1,6 +1,7 @@
 'use client';
 
 import { useAuthStore } from '@/stores/authStore';
+import { useViewModeStore } from '@/stores/viewModeStore';
 import { ROLE_LABELS } from '@/lib/auth/rbac';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -13,12 +14,13 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { MobileNav } from './MobileNav';
-import { Bell, Wifi, WifiOff, LogOut, User } from 'lucide-react';
+import { Bell, Wifi, WifiOff, LogOut, User, Monitor, Smartphone } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 export function Header() {
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
+  const { viewMode, toggleViewMode } = useViewModeStore();
   const [isOnline, setIsOnline] = useState(true);
 
   useEffect(() => {
@@ -50,6 +52,34 @@ export function Header() {
 
       {/* Spacer */}
       <div className="flex-1" />
+
+      {/* View Mode Toggle */}
+      <div className="flex items-center border rounded-lg overflow-hidden">
+        <button
+          onClick={() => viewMode !== 'desktop' && toggleViewMode()}
+          className={`flex items-center gap-1 px-3 py-1.5 text-sm transition-colors ${
+            viewMode === 'desktop'
+              ? 'bg-blue-600 text-white'
+              : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+          }`}
+          title="Desktop prikaz"
+        >
+          <Monitor className="h-4 w-4" />
+          <span className="hidden sm:inline">Desktop</span>
+        </button>
+        <button
+          onClick={() => viewMode !== 'mobile' && toggleViewMode()}
+          className={`flex items-center gap-1 px-3 py-1.5 text-sm transition-colors ${
+            viewMode === 'mobile'
+              ? 'bg-blue-600 text-white'
+              : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+          }`}
+          title="Mobilni prikaz"
+        >
+          <Smartphone className="h-4 w-4" />
+          <span className="hidden sm:inline">Mobilni</span>
+        </button>
+      </div>
 
       {/* Online/Offline indicator */}
       <div className="flex items-center gap-2">

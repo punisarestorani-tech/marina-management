@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Header } from '@/components/layout/Header';
 import { useAuthStore } from '@/stores/authStore';
+import { useViewModeStore } from '@/stores/viewModeStore';
 import { Loader2 } from 'lucide-react';
 
 export default function DashboardLayout({
@@ -14,6 +15,7 @@ export default function DashboardLayout({
 }) {
   const router = useRouter();
   const { user, isLoading, fetchProfile } = useAuthStore();
+  const viewMode = useViewModeStore((state) => state.viewMode);
   const [isRedirecting, setIsRedirecting] = useState(false);
 
   useEffect(() => {
@@ -37,15 +39,17 @@ export default function DashboardLayout({
     );
   }
 
+  const isMobileView = viewMode === 'mobile';
+
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
-      {/* Sidebar - hidden on mobile */}
-      <Sidebar />
+    <div className={`min-h-screen bg-slate-50 dark:bg-slate-950 ${isMobileView ? 'mobile-view' : ''}`}>
+      {/* Sidebar - hidden on mobile view */}
+      {!isMobileView && <Sidebar />}
 
       {/* Main content area */}
-      <div className="md:pl-64">
+      <div className={isMobileView ? '' : 'md:pl-64'}>
         <Header />
-        <main className="p-4 md:p-6 lg:p-8">{children}</main>
+        <main className={isMobileView ? 'p-3' : 'p-4 md:p-6 lg:p-8'}>{children}</main>
       </div>
     </div>
   );
