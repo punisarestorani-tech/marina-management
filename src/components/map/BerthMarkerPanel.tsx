@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { X, Ship, Calendar, Droplets, Zap, Ruler, User, Phone, ChevronLeft, ChevronRight, Plus, Check, Clock } from 'lucide-react';
+import { useViewModeStore } from '@/stores/viewModeStore';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -60,6 +61,8 @@ export function BerthMarkerPanel({ marker, onClose, onNewBooking }: BerthMarkerP
   const [currentBooking, setCurrentBooking] = useState<BookingData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const viewMode = useViewModeStore((state) => state.viewMode);
+  const isMobileView = viewMode === 'mobile';
 
   // Fetch berth details and bookings
   useEffect(() => {
@@ -147,20 +150,26 @@ export function BerthMarkerPanel({ marker, onClose, onNewBooking }: BerthMarkerP
   };
 
   return (
-    <Card className="absolute left-4 top-14 z-[1000] w-96 max-h-[calc(100vh-5rem)] overflow-hidden shadow-xl">
+    <Card className={`
+      absolute z-[1001] overflow-hidden shadow-xl
+      ${isMobileView
+        ? 'left-0 right-0 bottom-0 w-full rounded-b-none max-h-[70vh]'
+        : 'left-4 top-14 w-96 max-h-[calc(100vh-5rem)]'
+      }
+    `}>
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg flex items-center gap-2">
+          <CardTitle className={`flex items-center gap-2 ${isMobileView ? 'text-base' : 'text-lg'}`}>
             Vez {marker.code}
             <Badge className={statusInfo.color}>{statusInfo.label}</Badge>
           </CardTitle>
           <Button variant="ghost" size="icon" onClick={onClose}>
-            <X className="h-4 w-4" />
+            <X className="h-5 w-5" />
           </Button>
         </div>
       </CardHeader>
 
-      <CardContent className="overflow-y-auto max-h-[calc(100vh-12rem)]">
+      <CardContent className={`overflow-y-auto ${isMobileView ? 'max-h-[calc(70vh-4rem)] pb-6' : 'max-h-[calc(100vh-12rem)]'}`}>
         <Tabs defaultValue="details" className="w-full">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="details">Detalji</TabsTrigger>
