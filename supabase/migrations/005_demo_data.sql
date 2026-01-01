@@ -2,18 +2,6 @@
 -- Run this in Supabase SQL Editor
 
 -- =====================
--- CLEAR EXISTING DATA (optional - uncomment if needed)
--- =====================
--- DELETE FROM berth_bookings;
--- DELETE FROM daily_occupancy;
--- DELETE FROM payments;
--- DELETE FROM lease_contracts;
--- DELETE FROM violations;
--- DELETE FROM vessels;
--- DELETE FROM berths;
--- DELETE FROM pontoons;
-
--- =====================
 -- PONTOONS
 -- =====================
 INSERT INTO pontoons (id, name, code, is_active) VALUES
@@ -67,33 +55,33 @@ INSERT INTO berths (id, pontoon_id, code, polygon, width, length, max_draft, dai
 ON CONFLICT DO NOTHING;
 
 -- =====================
--- VESSELS - 15 brodova raznih veličina
+-- VESSELS - 15 brodova raznih velicina (using valid hex UUIDs)
 -- =====================
 INSERT INTO vessels (id, registration_number, name, type, length, width, draft, owner_name, owner_contact, flag_country) VALUES
   -- Mali brodovi (XS - S)
-  ('v0000001-0000-0000-0000-000000000001', 'MNE-1001-KT', 'Jadran I', 'motorboat', 6.5, 2.3, 0.8, 'Marko Petrović', '+382 67 123 456', 'MNE'),
-  ('v0000002-0000-0000-0000-000000000002', 'MNE-1002-BD', 'Morska Vila', 'sailboat', 8.0, 2.8, 1.5, 'Ana Đurović', '+382 68 234 567', 'MNE'),
-  ('v0000003-0000-0000-0000-000000000003', 'CRO-5421-ST', 'Adriatic Star', 'motorboat', 7.2, 2.5, 0.9, 'Ivan Horvat', '+385 91 345 678', 'CRO'),
+  ('f0000001-0000-0000-0000-000000000001', 'MNE-1001-KT', 'Jadran I', 'motorboat', 6.5, 2.3, 0.8, 'Marko Petrovic', '+382 67 123 456', 'MNE'),
+  ('f0000002-0000-0000-0000-000000000002', 'MNE-1002-BD', 'Morska Vila', 'sailboat', 8.0, 2.8, 1.5, 'Ana Djurovic', '+382 68 234 567', 'MNE'),
+  ('f0000003-0000-0000-0000-000000000003', 'CRO-5421-ST', 'Adriatic Star', 'motorboat', 7.2, 2.5, 0.9, 'Ivan Horvat', '+385 91 345 678', 'CRO'),
 
   -- Srednji brodovi (M)
-  ('v0000004-0000-0000-0000-000000000004', 'ITA-2234-VE', 'Bella Vita', 'yacht', 12.0, 4.0, 2.2, 'Marco Rossi', '+39 333 456 789', 'ITA'),
-  ('v0000005-0000-0000-0000-000000000005', 'MNE-2005-HN', 'Boka Queen', 'motorboat', 11.5, 3.8, 1.8, 'Nikola Vučković', '+382 69 567 890', 'MNE'),
-  ('v0000006-0000-0000-0000-000000000006', 'GRE-8812-PI', 'Poseidon', 'sailboat', 13.0, 4.2, 2.5, 'Nikos Papadopoulos', '+30 697 678 901', 'GRE'),
-  ('v0000007-0000-0000-0000-000000000007', 'SLO-3321-KP', 'Triglav', 'motorboat', 10.5, 3.5, 1.6, 'Jure Novak', '+386 41 789 012', 'SLO'),
+  ('f0000004-0000-0000-0000-000000000004', 'ITA-2234-VE', 'Bella Vita', 'yacht', 12.0, 4.0, 2.2, 'Marco Rossi', '+39 333 456 789', 'ITA'),
+  ('f0000005-0000-0000-0000-000000000005', 'MNE-2005-HN', 'Boka Queen', 'motorboat', 11.5, 3.8, 1.8, 'Nikola Vuckovic', '+382 69 567 890', 'MNE'),
+  ('f0000006-0000-0000-0000-000000000006', 'GRE-8812-PI', 'Poseidon', 'sailboat', 13.0, 4.2, 2.5, 'Nikos Papadopoulos', '+30 697 678 901', 'GRE'),
+  ('f0000007-0000-0000-0000-000000000007', 'SLO-3321-KP', 'Triglav', 'motorboat', 10.5, 3.5, 1.6, 'Jure Novak', '+386 41 789 012', 'SLO'),
 
   -- Veliki brodovi (L)
-  ('v0000008-0000-0000-0000-000000000008', 'GER-4456-HH', 'Nord Wind', 'yacht', 16.0, 4.8, 2.8, 'Hans Mueller', '+49 172 890 123', 'GER'),
-  ('v0000009-0000-0000-0000-000000000009', 'FRA-7789-MC', 'Côte d''Azur', 'yacht', 18.0, 5.2, 3.0, 'Pierre Dubois', '+33 6 901 234', 'FRA'),
-  ('v0000010-0000-0000-0000-000000000010', 'MNE-3010-TV', 'Montenegro Pride', 'catamaran', 15.0, 7.5, 1.8, 'Dragan Milović', '+382 67 012 345', 'MNE'),
+  ('f0000008-0000-0000-0000-000000000008', 'GER-4456-HH', 'Nord Wind', 'yacht', 16.0, 4.8, 2.8, 'Hans Mueller', '+49 172 890 123', 'GER'),
+  ('f0000009-0000-0000-0000-000000000009', 'FRA-7789-MC', 'Cote dAzur', 'yacht', 18.0, 5.2, 3.0, 'Pierre Dubois', '+33 6 901 234', 'FRA'),
+  ('f0000010-0000-0000-0000-000000000010', 'MNE-3010-TV', 'Montenegro Pride', 'catamaran', 15.0, 7.5, 1.8, 'Dragan Milovic', '+382 67 012 345', 'MNE'),
 
   -- Extra veliki brodovi (XL)
-  ('v0000011-0000-0000-0000-000000000011', 'UK-9912-LO', 'Royal Duchess', 'yacht', 22.0, 5.8, 3.5, 'James Wilson', '+44 7700 123 456', 'UK'),
-  ('v0000012-0000-0000-0000-000000000012', 'USA-1122-MI', 'Sea Freedom', 'yacht', 25.0, 6.2, 4.0, 'Robert Johnson', '+1 305 234 5678', 'USA'),
+  ('f0000011-0000-0000-0000-000000000011', 'UK-9912-LO', 'Royal Duchess', 'yacht', 22.0, 5.8, 3.5, 'James Wilson', '+44 7700 123 456', 'UK'),
+  ('f0000012-0000-0000-0000-000000000012', 'USA-1122-MI', 'Sea Freedom', 'yacht', 25.0, 6.2, 4.0, 'Robert Johnson', '+1 305 234 5678', 'USA'),
 
   -- Mega jahte (XXL)
-  ('v0000013-0000-0000-0000-000000000013', 'MLT-5533-VA', 'Mediterranean Dream', 'yacht', 32.0, 7.5, 4.5, 'Viktor Antonov', '+356 9999 3456', 'MLT'),
-  ('v0000014-0000-0000-0000-000000000014', 'CYM-6644-GC', 'Ocean Emperor', 'yacht', 38.0, 8.2, 5.0, 'Al-Rashid Holdings LLC', '+971 50 456 7890', 'CYM'),
-  ('v0000015-0000-0000-0000-000000000015', 'MNE-4015-KT', 'Kotor Bay', 'motorboat', 9.0, 3.0, 1.2, 'Stefan Jovanović', '+382 68 345 678', 'MNE')
+  ('f0000013-0000-0000-0000-000000000013', 'MLT-5533-VA', 'Mediterranean Dream', 'yacht', 32.0, 7.5, 4.5, 'Viktor Antonov', '+356 9999 3456', 'MLT'),
+  ('f0000014-0000-0000-0000-000000000014', 'CYM-6644-GC', 'Ocean Emperor', 'yacht', 38.0, 8.2, 5.0, 'Al-Rashid Holdings LLC', '+971 50 456 7890', 'CYM'),
+  ('f0000015-0000-0000-0000-000000000015', 'MNE-4015-KT', 'Kotor Bay', 'motorboat', 9.0, 3.0, 1.2, 'Stefan Jovanovic', '+382 68 345 678', 'MNE')
 ON CONFLICT (registration_number) DO NOTHING;
 
 -- =====================
@@ -101,100 +89,91 @@ ON CONFLICT (registration_number) DO NOTHING;
 -- =====================
 INSERT INTO berth_bookings (id, berth_code, check_in_date, check_out_date, guest_name, guest_phone, guest_email, guest_country, vessel_name, vessel_registration, vessel_length, vessel_width, status, payment_status, total_amount, amount_paid, notes) VALUES
   -- Trenutno prijavljeni (checked_in) - ZAUZETI
-  ('bk000001-0000-0000-0000-000000000001', 'A-01', '2025-12-28', '2026-01-05', 'Marko Petrović', '+382 67 123 456', 'marko@example.com', 'MNE', 'Jadran I', 'MNE-1001-KT', 6.5, 2.3, 'checked_in', 'paid', 400.00, 400.00, 'Godišnji odmor'),
-  ('bk000002-0000-0000-0000-000000000002', 'A-02', '2025-12-30', '2026-01-07', 'Ivan Horvat', '+385 91 345 678', 'ivan@example.hr', 'CRO', 'Adriatic Star', 'CRO-5421-ST', 7.2, 2.5, 'checked_in', 'paid', 480.00, 480.00, NULL),
-  ('bk000003-0000-0000-0000-000000000003', 'A-04', '2025-12-25', '2026-01-10', 'Marco Rossi', '+39 333 456 789', 'marco@example.it', 'ITA', 'Bella Vita', 'ITA-2234-VE', 12.0, 4.0, 'checked_in', 'partial', 1120.00, 500.00, 'VIP gost'),
-  ('bk000004-0000-0000-0000-000000000004', 'B-01', '2025-12-29', '2026-01-08', 'Nikola Vučković', '+382 69 567 890', 'nikola@example.me', 'MNE', 'Boka Queen', 'MNE-2005-HN', 11.5, 3.8, 'checked_in', 'paid', 800.00, 800.00, NULL),
-  ('bk000005-0000-0000-0000-000000000005', 'B-03', '2025-12-27', '2026-01-06', 'Hans Mueller', '+49 172 890 123', 'hans@example.de', 'GER', 'Nord Wind', 'GER-4456-HH', 16.0, 4.8, 'checked_in', 'paid', 900.00, 900.00, 'Premium servis'),
-  ('bk000006-0000-0000-0000-000000000006', 'C-01', '2025-12-26', '2026-01-12', 'Pierre Dubois', '+33 6 901 234', 'pierre@example.fr', 'FRA', 'Côte d''Azur', 'FRA-7789-MC', 18.0, 5.2, 'checked_in', 'partial', 2040.00, 1000.00, NULL),
-  ('bk000007-0000-0000-0000-000000000007', 'C-02', '2025-12-20', '2026-01-15', 'James Wilson', '+44 7700 123 456', 'james@example.uk', 'UK', 'Royal Duchess', 'UK-9912-LO', 22.0, 5.8, 'checked_in', 'paid', 3900.00, 3900.00, 'Dugogodišnji klijent'),
-  ('bk000008-0000-0000-0000-000000000008', 'D-01', '2025-12-22', '2026-01-20', 'Robert Johnson', '+1 305 234 5678', 'robert@example.com', 'USA', 'Sea Freedom', 'USA-1122-MI', 25.0, 6.2, 'checked_in', 'paid', 7250.00, 7250.00, 'Super jahta'),
-  ('bk000009-0000-0000-0000-000000000009', 'D-03', '2025-12-15', '2026-01-25', 'Viktor Antonov', '+356 9999 3456', 'viktor@example.mt', 'MLT', 'Mediterranean Dream', 'MLT-5533-VA', 32.0, 7.5, 'checked_in', 'paid', 12300.00, 12300.00, 'Mega jahta - specijalni tretman'),
+  ('b1000001-0000-0000-0000-000000000001', 'A-01', '2025-12-28', '2026-01-05', 'Marko Petrovic', '+382 67 123 456', 'marko@example.com', 'MNE', 'Jadran I', 'MNE-1001-KT', 6.5, 2.3, 'checked_in', 'paid', 400.00, 400.00, 'Godisnji odmor'),
+  ('b1000002-0000-0000-0000-000000000002', 'A-02', '2025-12-30', '2026-01-07', 'Ivan Horvat', '+385 91 345 678', 'ivan@example.hr', 'CRO', 'Adriatic Star', 'CRO-5421-ST', 7.2, 2.5, 'checked_in', 'paid', 480.00, 480.00, NULL),
+  ('b1000003-0000-0000-0000-000000000003', 'A-04', '2025-12-25', '2026-01-10', 'Marco Rossi', '+39 333 456 789', 'marco@example.it', 'ITA', 'Bella Vita', 'ITA-2234-VE', 12.0, 4.0, 'checked_in', 'partial', 1120.00, 500.00, 'VIP gost'),
+  ('b1000004-0000-0000-0000-000000000004', 'B-01', '2025-12-29', '2026-01-08', 'Nikola Vuckovic', '+382 69 567 890', 'nikola@example.me', 'MNE', 'Boka Queen', 'MNE-2005-HN', 11.5, 3.8, 'checked_in', 'paid', 800.00, 800.00, NULL),
+  ('b1000005-0000-0000-0000-000000000005', 'B-03', '2025-12-27', '2026-01-06', 'Hans Mueller', '+49 172 890 123', 'hans@example.de', 'GER', 'Nord Wind', 'GER-4456-HH', 16.0, 4.8, 'checked_in', 'paid', 900.00, 900.00, 'Premium servis'),
+  ('b1000006-0000-0000-0000-000000000006', 'C-01', '2025-12-26', '2026-01-12', 'Pierre Dubois', '+33 6 901 234', 'pierre@example.fr', 'FRA', 'Cote dAzur', 'FRA-7789-MC', 18.0, 5.2, 'checked_in', 'partial', 2040.00, 1000.00, NULL),
+  ('b1000007-0000-0000-0000-000000000007', 'C-02', '2025-12-20', '2026-01-15', 'James Wilson', '+44 7700 123 456', 'james@example.uk', 'UK', 'Royal Duchess', 'UK-9912-LO', 22.0, 5.8, 'checked_in', 'paid', 3900.00, 3900.00, 'Dugogodisnji klijent'),
+  ('b1000008-0000-0000-0000-000000000008', 'D-01', '2025-12-22', '2026-01-20', 'Robert Johnson', '+1 305 234 5678', 'robert@example.com', 'USA', 'Sea Freedom', 'USA-1122-MI', 25.0, 6.2, 'checked_in', 'paid', 7250.00, 7250.00, 'Super jahta'),
+  ('b1000009-0000-0000-0000-000000000009', 'D-03', '2025-12-15', '2026-01-25', 'Viktor Antonov', '+356 9999 3456', 'viktor@example.mt', 'MLT', 'Mediterranean Dream', 'MLT-5533-VA', 32.0, 7.5, 'checked_in', 'paid', 12300.00, 12300.00, 'Mega jahta - specijalni tretman'),
 
-  -- Potvrđene rezervacije (confirmed) - REZERVISANI
-  ('bk000010-0000-0000-0000-000000000010', 'A-05', '2026-01-05', '2026-01-12', 'Ana Đurović', '+382 68 234 567', 'ana@example.me', 'MNE', 'Morska Vila', 'MNE-1002-BD', 8.0, 2.8, 'confirmed', 'partial', 350.00, 100.00, NULL),
-  ('bk000011-0000-0000-0000-000000000011', 'B-02', '2026-01-08', '2026-01-15', 'Nikos Papadopoulos', '+30 697 678 901', 'nikos@example.gr', 'GRE', 'Poseidon', 'GRE-8812-PI', 13.0, 4.2, 'confirmed', 'pending', 560.00, 0.00, NULL),
-  ('bk000012-0000-0000-0000-000000000012', 'C-05', '2026-01-10', '2026-01-20', 'Al-Rashid Holdings LLC', '+971 50 456 7890', 'charter@alrashid.ae', 'UAE', 'Ocean Emperor', 'CYM-6644-GC', 38.0, 8.2, 'confirmed', 'partial', 4000.00, 2000.00, 'VIP - poseban zahtjev'),
+  -- Potvrdjene rezervacije (confirmed) - REZERVISANI
+  ('b1000010-0000-0000-0000-000000000010', 'A-05', '2026-01-05', '2026-01-12', 'Ana Djurovic', '+382 68 234 567', 'ana@example.me', 'MNE', 'Morska Vila', 'MNE-1002-BD', 8.0, 2.8, 'confirmed', 'partial', 350.00, 100.00, NULL),
+  ('b1000011-0000-0000-0000-000000000011', 'B-02', '2026-01-08', '2026-01-15', 'Nikos Papadopoulos', '+30 697 678 901', 'nikos@example.gr', 'GRE', 'Poseidon', 'GRE-8812-PI', 13.0, 4.2, 'confirmed', 'pending', 560.00, 0.00, NULL),
+  ('b1000012-0000-0000-0000-000000000012', 'C-05', '2026-01-10', '2026-01-20', 'Al-Rashid Holdings LLC', '+971 50 456 7890', 'charter@alrashid.ae', 'UAE', 'Ocean Emperor', 'CYM-6644-GC', 38.0, 8.2, 'confirmed', 'partial', 4000.00, 2000.00, 'VIP - poseban zahtjev'),
 
-  -- Na čekanju (pending)
-  ('bk000013-0000-0000-0000-000000000013', 'A-03', '2026-01-15', '2026-01-22', 'Jure Novak', '+386 41 789 012', 'jure@example.si', 'SLO', 'Triglav', 'SLO-3321-KP', 10.5, 3.5, 'pending', 'pending', 350.00, 0.00, 'Čeka potvrdu'),
-  ('bk000014-0000-0000-0000-000000000014', 'B-05', '2026-01-20', '2026-01-27', 'Dragan Milović', '+382 67 012 345', 'dragan@example.me', 'MNE', 'Montenegro Pride', 'MNE-3010-TV', 15.0, 7.5, 'pending', 'pending', 560.00, 0.00, 'Katamaran - potrebno odobrenje')
+  -- Na cekanju (pending)
+  ('b1000013-0000-0000-0000-000000000013', 'A-03', '2026-01-15', '2026-01-22', 'Jure Novak', '+386 41 789 012', 'jure@example.si', 'SLO', 'Triglav', 'SLO-3321-KP', 10.5, 3.5, 'pending', 'pending', 350.00, 0.00, 'Ceka potvrdu'),
+  ('b1000014-0000-0000-0000-000000000014', 'B-05', '2026-01-20', '2026-01-27', 'Dragan Milovic', '+382 67 012 345', 'dragan@example.me', 'MNE', 'Montenegro Pride', 'MNE-3010-TV', 15.0, 7.5, 'pending', 'pending', 560.00, 0.00, 'Katamaran - potrebno odobrenje')
 ON CONFLICT DO NOTHING;
 
 -- =====================
--- LEASE CONTRACTS - Godišnji ugovori
+-- LEASE CONTRACTS - Godisnji ugovori
 -- =====================
 INSERT INTO lease_contracts (id, berth_id, vessel_id, owner_name, owner_email, owner_phone, start_date, end_date, annual_price, payment_schedule, status, notes) VALUES
-  ('lc000001-0000-0000-0000-000000000001', 'c0000002-0000-0000-0000-000000000002', 'v0000011-0000-0000-0000-000000000011', 'James Wilson', 'james@example.uk', '+44 7700 123 456', '2025-01-01', '2025-12-31', 45000.00, 'quarterly', 'active', 'Premium lokacija'),
-  ('lc000002-0000-0000-0000-000000000002', 'd0000001-0000-0000-0000-000000000001', 'v0000012-0000-0000-0000-000000000012', 'Robert Johnson', 'robert@example.com', '+1 305 234 5678', '2025-01-01', '2025-12-31', 75000.00, 'quarterly', 'active', 'VIP klijent'),
-  ('lc000003-0000-0000-0000-000000000003', 'd0000003-0000-0000-0000-000000000003', 'v0000013-0000-0000-0000-000000000013', 'Viktor Antonov', 'viktor@example.mt', '+356 9999 3456', '2025-01-01', '2025-12-31', 95000.00, 'annual', 'active', 'Mega jahta - sve uključeno'),
-  ('lc000004-0000-0000-0000-000000000004', 'b0000003-0000-0000-0000-000000000003', 'v0000008-0000-0000-0000-000000000008', 'Hans Mueller', 'hans@example.de', '+49 172 890 123', '2025-06-01', '2026-05-31', 28000.00, 'monthly', 'active', NULL),
-  ('lc000005-0000-0000-0000-000000000005', 'a0000002-0000-0000-0000-000000000002', 'v0000003-0000-0000-0000-000000000003', 'Ivan Horvat', 'ivan@example.hr', '+385 91 345 678', '2025-04-01', '2026-03-31', 18000.00, 'quarterly', 'active', 'Sezonski najam')
+  ('1c000001-0000-0000-0000-000000000001', 'c0000002-0000-0000-0000-000000000002', 'f0000011-0000-0000-0000-000000000011', 'James Wilson', 'james@example.uk', '+44 7700 123 456', '2025-01-01', '2025-12-31', 45000.00, 'quarterly', 'active', 'Premium lokacija'),
+  ('1c000002-0000-0000-0000-000000000002', 'd0000001-0000-0000-0000-000000000001', 'f0000012-0000-0000-0000-000000000012', 'Robert Johnson', 'robert@example.com', '+1 305 234 5678', '2025-01-01', '2025-12-31', 75000.00, 'quarterly', 'active', 'VIP klijent'),
+  ('1c000003-0000-0000-0000-000000000003', 'd0000003-0000-0000-0000-000000000003', 'f0000013-0000-0000-0000-000000000013', 'Viktor Antonov', 'viktor@example.mt', '+356 9999 3456', '2025-01-01', '2025-12-31', 95000.00, 'annual', 'active', 'Mega jahta - sve ukljuceno'),
+  ('1c000004-0000-0000-0000-000000000004', 'b0000003-0000-0000-0000-000000000003', 'f0000008-0000-0000-0000-000000000008', 'Hans Mueller', 'hans@example.de', '+49 172 890 123', '2025-06-01', '2026-05-31', 28000.00, 'monthly', 'active', NULL),
+  ('1c000005-0000-0000-0000-000000000005', 'a0000002-0000-0000-0000-000000000002', 'f0000003-0000-0000-0000-000000000003', 'Ivan Horvat', 'ivan@example.hr', '+385 91 345 678', '2025-04-01', '2026-03-31', 18000.00, 'quarterly', 'active', 'Sezonski najam')
 ON CONFLICT DO NOTHING;
 
 -- =====================
--- PAYMENTS - Plaćanja za ugovore
+-- PAYMENTS - Placanja za ugovore
 -- =====================
 INSERT INTO payments (id, contract_id, amount, due_date, paid_date, status, payment_method, receipt_number, notes) VALUES
-  -- James Wilson - kvartalna plaćanja
-  ('py000001-0000-0000-0000-000000000001', 'lc000001-0000-0000-0000-000000000001', 11250.00, '2025-01-15', '2025-01-10', 'paid', 'bank_transfer', 'REC-2025-001', 'Q1 2025'),
-  ('py000002-0000-0000-0000-000000000002', 'lc000001-0000-0000-0000-000000000001', 11250.00, '2025-04-15', '2025-04-12', 'paid', 'bank_transfer', 'REC-2025-045', 'Q2 2025'),
-  ('py000003-0000-0000-0000-000000000003', 'lc000001-0000-0000-0000-000000000001', 11250.00, '2025-07-15', '2025-07-14', 'paid', 'bank_transfer', 'REC-2025-112', 'Q3 2025'),
-  ('py000004-0000-0000-0000-000000000004', 'lc000001-0000-0000-0000-000000000001', 11250.00, '2025-10-15', '2025-10-10', 'paid', 'bank_transfer', 'REC-2025-198', 'Q4 2025'),
+  -- James Wilson - kvartalna placanja
+  ('e1000001-0000-0000-0000-000000000001', '1c000001-0000-0000-0000-000000000001', 11250.00, '2025-01-15', '2025-01-10', 'paid', 'bank_transfer', 'REC-2025-001', 'Q1 2025'),
+  ('e1000002-0000-0000-0000-000000000002', '1c000001-0000-0000-0000-000000000001', 11250.00, '2025-04-15', '2025-04-12', 'paid', 'bank_transfer', 'REC-2025-045', 'Q2 2025'),
+  ('e1000003-0000-0000-0000-000000000003', '1c000001-0000-0000-0000-000000000001', 11250.00, '2025-07-15', '2025-07-14', 'paid', 'bank_transfer', 'REC-2025-112', 'Q3 2025'),
+  ('e1000004-0000-0000-0000-000000000004', '1c000001-0000-0000-0000-000000000001', 11250.00, '2025-10-15', '2025-10-10', 'paid', 'bank_transfer', 'REC-2025-198', 'Q4 2025'),
 
-  -- Robert Johnson - kvartalna plaćanja
-  ('py000005-0000-0000-0000-000000000005', 'lc000002-0000-0000-0000-000000000002', 18750.00, '2025-01-15', '2025-01-08', 'paid', 'wire_transfer', 'REC-2025-002', 'Q1 2025'),
-  ('py000006-0000-0000-0000-000000000006', 'lc000002-0000-0000-0000-000000000002', 18750.00, '2025-04-15', '2025-04-10', 'paid', 'wire_transfer', 'REC-2025-046', 'Q2 2025'),
-  ('py000007-0000-0000-0000-000000000007', 'lc000002-0000-0000-0000-000000000002', 18750.00, '2025-07-15', '2025-07-15', 'paid', 'wire_transfer', 'REC-2025-113', 'Q3 2025'),
-  ('py000008-0000-0000-0000-000000000008', 'lc000002-0000-0000-0000-000000000002', 18750.00, '2025-10-15', NULL, 'overdue', NULL, NULL, 'Q4 2025 - KASNI'),
+  -- Robert Johnson - kvartalna placanja
+  ('e1000005-0000-0000-0000-000000000005', '1c000002-0000-0000-0000-000000000002', 18750.00, '2025-01-15', '2025-01-08', 'paid', 'wire_transfer', 'REC-2025-002', 'Q1 2025'),
+  ('e1000006-0000-0000-0000-000000000006', '1c000002-0000-0000-0000-000000000002', 18750.00, '2025-04-15', '2025-04-10', 'paid', 'wire_transfer', 'REC-2025-046', 'Q2 2025'),
+  ('e1000007-0000-0000-0000-000000000007', '1c000002-0000-0000-0000-000000000002', 18750.00, '2025-07-15', '2025-07-15', 'paid', 'wire_transfer', 'REC-2025-113', 'Q3 2025'),
+  ('e1000008-0000-0000-0000-000000000008', '1c000002-0000-0000-0000-000000000002', 18750.00, '2025-10-15', NULL, 'overdue', NULL, NULL, 'Q4 2025 - KASNI'),
 
-  -- Viktor Antonov - godišnje plaćanje
-  ('py000009-0000-0000-0000-000000000009', 'lc000003-0000-0000-0000-000000000003', 95000.00, '2025-01-15', '2025-01-05', 'paid', 'wire_transfer', 'REC-2025-003', 'Godišnje unaprijed'),
+  -- Viktor Antonov - godisnje placanje
+  ('e1000009-0000-0000-0000-000000000009', '1c000003-0000-0000-0000-000000000003', 95000.00, '2025-01-15', '2025-01-05', 'paid', 'wire_transfer', 'REC-2025-003', 'Godisnje unaprijed'),
 
-  -- Hans Mueller - mjesečna plaćanja (zadnja 3 mjeseca)
-  ('py000010-0000-0000-0000-000000000010', 'lc000004-0000-0000-0000-000000000004', 2333.33, '2025-10-01', '2025-09-28', 'paid', 'bank_transfer', 'REC-2025-180', 'Oktobar 2025'),
-  ('py000011-0000-0000-0000-000000000011', 'lc000004-0000-0000-0000-000000000004', 2333.33, '2025-11-01', '2025-10-30', 'paid', 'bank_transfer', 'REC-2025-210', 'Novembar 2025'),
-  ('py000012-0000-0000-0000-000000000012', 'lc000004-0000-0000-0000-000000000004', 2333.33, '2025-12-01', '2025-11-29', 'paid', 'bank_transfer', 'REC-2025-245', 'Decembar 2025'),
-  ('py000013-0000-0000-0000-000000000013', 'lc000004-0000-0000-0000-000000000004', 2333.33, '2026-01-01', NULL, 'pending', NULL, NULL, 'Januar 2026')
+  -- Hans Mueller - mjesecna placanja (zadnja 3 mjeseca)
+  ('e1000010-0000-0000-0000-000000000010', '1c000004-0000-0000-0000-000000000004', 2333.33, '2025-10-01', '2025-09-28', 'paid', 'bank_transfer', 'REC-2025-180', 'Oktobar 2025'),
+  ('e1000011-0000-0000-0000-000000000011', '1c000004-0000-0000-0000-000000000004', 2333.33, '2025-11-01', '2025-10-30', 'paid', 'bank_transfer', 'REC-2025-210', 'Novembar 2025'),
+  ('e1000012-0000-0000-0000-000000000012', '1c000004-0000-0000-0000-000000000004', 2333.33, '2025-12-01', '2025-11-29', 'paid', 'bank_transfer', 'REC-2025-245', 'Decembar 2025'),
+  ('e1000013-0000-0000-0000-000000000013', '1c000004-0000-0000-0000-000000000004', 2333.33, '2026-01-01', NULL, 'pending', NULL, NULL, 'Januar 2026')
 ON CONFLICT DO NOTHING;
 
 -- =====================
--- VIOLATIONS - Prekršaji
+-- VIOLATIONS - Prekrsaji
 -- =====================
 INSERT INTO violations (id, berth_id, vessel_id, type, description, detected_date, resolved_date, status) VALUES
-  ('vl000001-0000-0000-0000-000000000001', 'a0000003-0000-0000-0000-000000000003', NULL, 'unpaid_occupancy', 'Nepoznato plovilo bez rezervacije', '2025-12-28', NULL, 'open'),
-  ('vl000002-0000-0000-0000-000000000002', 'b0000007-0000-0000-0000-000000000007', 'v0000007-0000-0000-0000-000000000007', 'no_contract', 'Plovilo koristi vez bez ugovora', '2025-12-25', '2025-12-27', 'resolved'),
-  ('vl000003-0000-0000-0000-000000000003', 'd0000001-0000-0000-0000-000000000001', 'v0000012-0000-0000-0000-000000000012', 'overstay', 'Prekoračen dogovoreni period boravka za 3 dana', '2025-12-20', NULL, 'open')
+  ('e2000001-0000-0000-0000-000000000001', 'a0000003-0000-0000-0000-000000000003', NULL, 'unpaid_occupancy', 'Nepoznato plovilo bez rezervacije', '2025-12-28', NULL, 'open'),
+  ('e2000002-0000-0000-0000-000000000002', 'b0000007-0000-0000-0000-000000000007', 'f0000007-0000-0000-0000-000000000007', 'no_contract', 'Plovilo koristi vez bez ugovora', '2025-12-25', '2025-12-27', 'resolved'),
+  ('e2000003-0000-0000-0000-000000000003', 'd0000001-0000-0000-0000-000000000001', 'f0000012-0000-0000-0000-000000000012', 'overstay', 'Prekoracen dogovoreni period boravka za 3 dana', '2025-12-20', NULL, 'open')
 ON CONFLICT DO NOTHING;
 
 -- =====================
--- DAILY OCCUPANCY - Današnje stanje
+-- DAILY OCCUPANCY - Danasnje stanje
 -- =====================
 INSERT INTO daily_occupancy (berth_id, vessel_id, date, status, notes) VALUES
-  ('a0000001-0000-0000-0000-000000000001', 'v0000001-0000-0000-0000-000000000001', CURRENT_DATE, 'occupied', 'Redovna provjera'),
-  ('a0000002-0000-0000-0000-000000000002', 'v0000003-0000-0000-0000-000000000003', CURRENT_DATE, 'occupied', NULL),
+  ('a0000001-0000-0000-0000-000000000001', 'f0000001-0000-0000-0000-000000000001', CURRENT_DATE, 'occupied', 'Redovna provjera'),
+  ('a0000002-0000-0000-0000-000000000002', 'f0000003-0000-0000-0000-000000000003', CURRENT_DATE, 'occupied', NULL),
   ('a0000003-0000-0000-0000-000000000003', NULL, CURRENT_DATE, 'free', NULL),
-  ('a0000004-0000-0000-0000-000000000004', 'v0000004-0000-0000-0000-000000000004', CURRENT_DATE, 'occupied', NULL),
+  ('a0000004-0000-0000-0000-000000000004', 'f0000004-0000-0000-0000-000000000004', CURRENT_DATE, 'occupied', NULL),
   ('a0000005-0000-0000-0000-000000000005', NULL, CURRENT_DATE, 'reserved', 'Rezervisano za sutra'),
-  ('b0000001-0000-0000-0000-000000000001', 'v0000005-0000-0000-0000-000000000005', CURRENT_DATE, 'occupied', NULL),
+  ('b0000001-0000-0000-0000-000000000001', 'f0000005-0000-0000-0000-000000000005', CURRENT_DATE, 'occupied', NULL),
   ('b0000002-0000-0000-0000-000000000002', NULL, CURRENT_DATE, 'reserved', NULL),
-  ('b0000003-0000-0000-0000-000000000003', 'v0000008-0000-0000-0000-000000000008', CURRENT_DATE, 'occupied', NULL),
-  ('c0000001-0000-0000-0000-000000000001', 'v0000009-0000-0000-0000-000000000009', CURRENT_DATE, 'occupied', NULL),
-  ('c0000002-0000-0000-0000-000000000002', 'v0000011-0000-0000-0000-000000000011', CURRENT_DATE, 'occupied', NULL),
-  ('d0000001-0000-0000-0000-000000000001', 'v0000012-0000-0000-0000-000000000012', CURRENT_DATE, 'occupied', NULL),
-  ('d0000003-0000-0000-0000-000000000003', 'v0000013-0000-0000-0000-000000000013', CURRENT_DATE, 'occupied', NULL)
+  ('b0000003-0000-0000-0000-000000000003', 'f0000008-0000-0000-0000-000000000008', CURRENT_DATE, 'occupied', NULL),
+  ('c0000001-0000-0000-0000-000000000001', 'f0000009-0000-0000-0000-000000000009', CURRENT_DATE, 'occupied', NULL),
+  ('c0000002-0000-0000-0000-000000000002', 'f0000011-0000-0000-0000-000000000011', CURRENT_DATE, 'occupied', NULL),
+  ('d0000001-0000-0000-0000-000000000001', 'f0000012-0000-0000-0000-000000000012', CURRENT_DATE, 'occupied', NULL),
+  ('d0000003-0000-0000-0000-000000000003', 'f0000013-0000-0000-0000-000000000013', CURRENT_DATE, 'occupied', NULL)
 ON CONFLICT (berth_id, date) DO UPDATE SET status = EXCLUDED.status, vessel_id = EXCLUDED.vessel_id, notes = EXCLUDED.notes;
 
--- Update statistics
-SELECT
-  'Ukupno vezova: ' || COUNT(*) as berths_count
-FROM berths;
-
-SELECT
-  'Ukupno plovila: ' || COUNT(*) as vessels_count
-FROM vessels;
-
-SELECT
-  'Aktivne rezervacije: ' || COUNT(*) as bookings_count
-FROM berth_bookings
-WHERE status IN ('checked_in', 'confirmed', 'pending');
+-- Show results
+SELECT 'Ukupno vezova: ' || COUNT(*) as info FROM berths;
+SELECT 'Ukupno plovila: ' || COUNT(*) as info FROM vessels;
+SELECT 'Aktivne rezervacije: ' || COUNT(*) as info FROM berth_bookings WHERE status IN ('checked_in', 'confirmed', 'pending');
