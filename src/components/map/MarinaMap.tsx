@@ -316,13 +316,20 @@ function MapEventHandler({
   return null;
 }
 
-// Component to handle map centering
-function MapController() {
+// Component to handle map centering - centers on berth markers if available
+function MapController({ berthMarkers }: { berthMarkers?: BerthMarker[] }) {
   const map = useMap();
 
   useEffect(() => {
-    map.setView(MARINA_CENTER, DEFAULT_ZOOM);
-  }, [map]);
+    // Calculate center based on berth markers
+    if (berthMarkers && berthMarkers.length > 0) {
+      const avgLat = berthMarkers.reduce((sum, m) => sum + m.position.lat, 0) / berthMarkers.length;
+      const avgLng = berthMarkers.reduce((sum, m) => sum + m.position.lng, 0) / berthMarkers.length;
+      map.setView([avgLat, avgLng], DEFAULT_ZOOM);
+    } else {
+      map.setView(MARINA_CENTER, DEFAULT_ZOOM);
+    }
+  }, [map, berthMarkers]);
 
   return null;
 }
@@ -441,7 +448,7 @@ export function MarinaMap({
       zoomControl={true}
       attributionControl={false}
     >
-      <MapController />
+      <MapController berthMarkers={berthMarkers} />
       <MapEventHandler onMapClick={onMapClick} boatPlacementMode={boatPlacementMode} berthMarkerMode={berthMarkerMode} onZoomChange={handleZoomChange} />
 
       {/* User location */}
