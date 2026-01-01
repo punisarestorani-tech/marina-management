@@ -200,14 +200,16 @@ export default function BerthsPage() {
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      <Droplets
-                        className={`h-4 w-4 ${berth.hasWater ? 'text-blue-500' : 'text-gray-300'}`}
-                        title={berth.hasWater ? 'Ima vodu' : 'Nema vodu'}
-                      />
-                      <Zap
-                        className={`h-4 w-4 ${berth.hasElectricity ? 'text-yellow-500' : 'text-gray-300'}`}
-                        title={berth.hasElectricity ? 'Ima struju' : 'Nema struju'}
-                      />
+                      <span title={berth.hasWater ? 'Ima vodu' : 'Nema vodu'}>
+                        <Droplets
+                          className={`h-4 w-4 ${berth.hasWater ? 'text-blue-500' : 'text-gray-300'}`}
+                        />
+                      </span>
+                      <span title={berth.hasElectricity ? 'Ima struju' : 'Nema struju'}>
+                        <Zap
+                          className={`h-4 w-4 ${berth.hasElectricity ? 'text-yellow-500' : 'text-gray-300'}`}
+                        />
+                      </span>
                     </div>
                   </TableCell>
                   <TableCell>{berth.dailyRate} EUR</TableCell>
