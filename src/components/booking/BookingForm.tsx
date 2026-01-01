@@ -261,7 +261,7 @@ export function BookingForm({
               id="guestName"
               value={guestName}
               onChange={(e) => setGuestName(e.target.value)}
-              placeholder="npr. Ivan Horvat"
+              placeholder="npr. Marko Petrović"
               required
             />
           </div>
@@ -273,7 +273,7 @@ export function BookingForm({
                 type="tel"
                 value={guestPhone}
                 onChange={(e) => setGuestPhone(e.target.value)}
-                placeholder="+385..."
+                placeholder="+382..."
               />
             </div>
             <div>
@@ -293,7 +293,7 @@ export function BookingForm({
               id="guestCountry"
               value={guestCountry}
               onChange={(e) => setGuestCountry(e.target.value)}
-              placeholder="npr. Hrvatska"
+              placeholder="npr. Crna Gora"
             />
           </div>
         </div>
@@ -332,7 +332,7 @@ export function BookingForm({
                 onChange={(e) => setVesselType(e.target.value as VesselType)}
                 className="w-full h-10 px-3 border rounded-md bg-background"
               >
-                <option value="">-- Odaberi --</option>
+                <option value="">-- Izaberi --</option>
                 <option value="sailboat">Jedrilica</option>
                 <option value="motorboat">Motorna jahta</option>
                 <option value="yacht">Jahta</option>
@@ -550,7 +550,7 @@ export function BookingForm({
           ) : (
             <Save className="w-4 h-4 mr-2" />
           )}
-          {isEditing ? 'Spremi promjene' : 'Kreiraj rezervaciju'}
+          {isEditing ? 'Sačuvaj izmjene' : 'Kreiraj rezervaciju'}
         </Button>
         <Button type="button" variant="outline" onClick={onCancel}>
           Odustani

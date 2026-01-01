@@ -91,17 +91,17 @@ export default function UsersPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" placeholder="korisnik@marina.hr" />
+                <Input id="email" type="email" placeholder="korisnik@marina.me" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="phone">Telefon</Label>
-                <Input id="phone" placeholder="+385 91 ..." />
+                <Input id="phone" placeholder="+382 67 ..." />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="role">Uloga</Label>
                 <Select>
                   <SelectTrigger>
-                    <SelectValue placeholder="Odaberi ulogu" />
+                    <SelectValue placeholder="Izaberi ulogu" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="inspector">Inspektor (Teren)</SelectItem>

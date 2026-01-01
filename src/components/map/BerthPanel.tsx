@@ -160,7 +160,7 @@ export function BerthPanel({ berth, userRole, onClose, onSave }: BerthPanelProps
                 onValueChange={(value) => setStatus(value as OccupancyStatus)}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Odaberi status" />
+                  <SelectValue placeholder="Izaberi status" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="free">Slobodan</SelectItem>
@@ -192,7 +192,7 @@ export function BerthPanel({ berth, userRole, onClose, onSave }: BerthPanelProps
                     onValueChange={(value) => setVesselType(value as VesselType)}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Odaberi tip (opcionalno)" />
+                      <SelectValue placeholder="Izaberi tip (opciono)" />
                     </SelectTrigger>
                     <SelectContent>
                       {VESSEL_TYPES.map((type) => (
@@ -237,10 +237,10 @@ export function BerthPanel({ berth, userRole, onClose, onSave }: BerthPanelProps
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Spremam...
+                  Čuvam...
                 </>
               ) : (
-                'Spremi'
+                'Sačuvaj'
               )}
             </Button>
           </form>

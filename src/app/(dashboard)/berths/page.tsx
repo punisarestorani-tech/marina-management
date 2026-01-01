@@ -331,7 +331,7 @@ export default function BerthsPage() {
               Odustani
             </Button>
             <Button onClick={handleSaveBerth}>
-              Spremi promjene
+              Sačuvaj izmjene
             </Button>
           </DialogFooter>
         </DialogContent>

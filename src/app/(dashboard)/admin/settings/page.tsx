@@ -72,7 +72,7 @@ export default function SettingsPage() {
                 <Label htmlFor="address">Adresa</Label>
                 <Textarea
                   id="address"
-                  defaultValue="Obala bb, 21000 Split, Hrvatska"
+                  defaultValue="Obala bb, 85310 Budva, Crna Gora"
                   rows={2}
                 />
               </div>
@@ -80,11 +80,11 @@ export default function SettingsPage() {
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="phone">Telefon</Label>
-                  <Input id="phone" defaultValue="+385 21 123 456" />
+                  <Input id="phone" defaultValue="+382 33 123 456" />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
-                  <Input id="email" type="email" defaultValue="info@marina.hr" />
+                  <Input id="email" type="email" defaultValue="info@marina.me" />
                 </div>
               </div>
 
@@ -104,7 +104,7 @@ export default function SettingsPage() {
               <div className="flex justify-end">
                 <Button>
                   <Save className="mr-2 h-4 w-4" />
-                  Spremi promjene
+                  Sačuvaj izmjene
                 </Button>
               </div>
             </CardContent>
@@ -184,7 +184,7 @@ export default function SettingsPage() {
                 <p className="text-sm text-muted-foreground mb-4">
                   Povuci i ispusti sliku ili klikni za upload
                 </p>
-                <Button variant="outline">Odaberi sliku</Button>
+                <Button variant="outline">Izaberi sliku</Button>
               </div>
             </CardContent>
           </Card>
@@ -251,7 +251,7 @@ export default function SettingsPage() {
                 <div className="flex justify-end">
                   <Button>
                     <Save className="mr-2 h-4 w-4" />
-                    Spremi cjenovnik
+                    Sačuvaj cjenovnik
                   </Button>
                 </div>
               </div>

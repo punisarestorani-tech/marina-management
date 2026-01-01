@@ -73,7 +73,7 @@ export function PhotoUpload({
 
     // Validate file type
     if (!file.type.startsWith('image/')) {
-      setError('Molimo odaberite sliku');
+      setError('Molimo izaberite sliku');
       return;
     }
 
@@ -188,7 +188,7 @@ export function PhotoUpload({
             ) : (
               <Upload className="w-4 h-4 mr-1" />
             )}
-            Odaberi
+            Izaberi
           </Button>
         </div>
       )}

@@ -487,7 +487,7 @@ export default function BookingsPage() {
       {viewMode === 'calendar' && (
         <div className="grid grid-cols-3 gap-4">
           <Card className="p-4">
-            <h3 className="font-semibold mb-3">Odaberi vez</h3>
+            <h3 className="font-semibold mb-3">Izaberi vez</h3>
             <div className="space-y-1">
               {DEMO_BERTHS.filter((b) => b.type === 'transit').map((berth) => (
                 <button
@@ -526,7 +526,7 @@ export default function BookingsPage() {
               />
             ) : (
               <Card className="p-8 text-center text-muted-foreground">
-                Odaberite vez za prikaz kalendara
+                Izaberite vez za prikaz kalendara
               </Card>
             )}
           </div>
