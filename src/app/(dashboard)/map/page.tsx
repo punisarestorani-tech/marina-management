@@ -487,23 +487,22 @@ export default function MapPage() {
           ) : (
             <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 mb-4 border border-dashed">
               <p className="text-sm text-center text-muted-foreground">Kliknite na mapu da postavite brod</p>
+              {/* Berth selector for new boat */}
+              <div className="mt-3">
+                <Label className="text-xs mb-1 block">Vez za novi brod</Label>
+                <select
+                  value={newBoatBerthCode}
+                  onChange={(e) => setNewBoatBerthCode(e.target.value)}
+                  className="w-full h-8 text-sm border rounded px-2 bg-white dark:bg-slate-800"
+                >
+                  <option value="">-- Izaberi vez --</option>
+                  {uniqueBerths.map((marker) => (
+                    <option key={marker.id} value={marker.code}>{marker.code}</option>
+                  ))}
+                </select>
+              </div>
             </div>
           )}
-
-          {/* Berth selector for new boat */}
-          <div className="mb-4">
-            <Label className="text-xs mb-2 block">Broj veza za novi brod</Label>
-            <select
-              value={newBoatBerthCode}
-              onChange={(e) => setNewBoatBerthCode(e.target.value)}
-              className="w-full h-8 text-sm border rounded px-2 bg-white dark:bg-slate-800"
-            >
-              <option value="">-- Izaberi vez --</option>
-              {uniqueBerths.map((marker) => (
-                <option key={marker.id} value={marker.code}>{marker.code}</option>
-              ))}
-            </select>
-          </div>
 
           {/* Save button */}
           <Button onClick={handleSaveAll} className="w-full" disabled={isSaving}>
