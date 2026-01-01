@@ -31,36 +31,8 @@ const MarinaMap = dynamic(
 // Empty berths for now
 const BERTHS: BerthMapData[] = [];
 
-// Demo berth markers
-const INITIAL_BERTH_MARKERS: BerthMarker[] = [
-  {
-    id: 'bm1',
-    code: 'A-01',
-    pontoon: 'A',
-    position: { lat: 42.2886, lng: 18.8395 },
-    status: 'occupied',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'bm2',
-    code: 'A-02',
-    pontoon: 'A',
-    position: { lat: 42.2884, lng: 18.8397 },
-    status: 'free',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'bm3',
-    code: 'B-01',
-    pontoon: 'B',
-    position: { lat: 42.2882, lng: 18.8400 },
-    status: 'reserved',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-];
+// Start with empty berth markers - will be loaded from database
+const INITIAL_BERTH_MARKERS: BerthMarker[] = [];
 
 // Demo boats - in production this comes from API
 const INITIAL_BOATS: BoatPlacement[] = [
@@ -256,11 +228,56 @@ export default function MapPage() {
     }
   };
 
-  const handleSaveBoats = () => {
-    // TODO: Save to API
-    console.log('Saving boats:', boats);
-    console.log('Saving berth markers:', berthMarkers);
-    alert('Podaci sačuvani! (U produkciji bi se sačuvali u bazu)');
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleSaveBoats = async () => {
+    setIsSaving(true);
+    try {
+      const supabase = (await import('@/lib/supabase/client')).getSupabaseClient();
+
+      // Save berth markers to database
+      for (const marker of berthMarkers) {
+        // Check if berth already exists
+        const { data: existing } = await supabase
+          .from('berths')
+          .select('id')
+          .eq('code', marker.code)
+          .single();
+
+        if (existing) {
+          // Update existing berth position
+          await supabase
+            .from('berths')
+            .update({
+              polygon: [[marker.position.lat, marker.position.lng]],
+            })
+            .eq('id', existing.id);
+        } else {
+          // Create new berth
+          await supabase
+            .from('berths')
+            .insert({
+              code: marker.code,
+              polygon: [[marker.position.lat, marker.position.lng]],
+              status: 'active',
+              width: 4.0,
+              length: 12.0,
+              has_water: false,
+              has_electricity: false,
+            });
+        }
+      }
+
+      alert(`Sačuvano ${berthMarkers.length} vezova u bazu!`);
+
+      // Refresh data from database
+      refetchBerths();
+    } catch (error) {
+      console.error('Error saving:', error);
+      alert('Greška pri spremanju: ' + (error as Error).message);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // Berth marker handlers
@@ -807,9 +824,13 @@ export default function MapPage() {
 
           {/* Save button */}
           <div className="border-t pt-3">
-            <Button onClick={handleSaveBoats} className="w-full">
-              <Save className="w-4 h-4 mr-2" />
-              Sačuvaj sve ({berthMarkers.length} vezova)
+            <Button onClick={handleSaveBoats} className="w-full" disabled={isSaving}>
+              {isSaving ? (
+                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Save className="w-4 h-4 mr-2" />
+              )}
+              {isSaving ? 'Spremam...' : `Sačuvaj sve (${berthMarkers.length} vezova)`}
             </Button>
           </div>
         </Card>
