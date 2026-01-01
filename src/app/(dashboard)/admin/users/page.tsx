@@ -69,6 +69,16 @@ export default function UsersPage() {
     is_active: true,
   });
 
+  // Form state for new user
+  const [newUserForm, setNewUserForm] = useState({
+    email: '',
+    password: '',
+    full_name: '',
+    phone: '',
+    role: 'inspector',
+  });
+  const [isCreating, setIsCreating] = useState(false);
+
   // Load users from Supabase
   useEffect(() => {
     const loadUsers = async () => {
@@ -93,6 +103,70 @@ export default function UsersPage() {
     };
     loadUsers();
   }, []);
+
+  // Create new user
+  const handleCreateUser = async () => {
+    if (!newUserForm.email || !newUserForm.password || !newUserForm.full_name) {
+      alert('Popuni sva obavezna polja!');
+      return;
+    }
+    setIsCreating(true);
+
+    try {
+      const supabase = getSupabaseClient();
+
+      // Create user with Supabase Auth
+      const { data, error } = await supabase.auth.signUp({
+        email: newUserForm.email,
+        password: newUserForm.password,
+        options: {
+          data: {
+            full_name: newUserForm.full_name,
+            role: newUserForm.role,
+          }
+        }
+      });
+
+      if (error) {
+        alert('Greška: ' + error.message);
+        return;
+      }
+
+      if (data.user) {
+        // Update profile with phone if provided
+        if (newUserForm.phone) {
+          await supabase
+            .from('profiles')
+            .update({ phone: newUserForm.phone })
+            .eq('id', data.user.id);
+        }
+
+        // Reload users
+        const { data: updatedUsers } = await supabase
+          .from('profiles')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (updatedUsers) {
+          setUsers(updatedUsers);
+        }
+
+        alert('Korisnik kreiran! Email za potvrdu je poslan na ' + newUserForm.email);
+        setIsAddDialogOpen(false);
+        setNewUserForm({
+          email: '',
+          password: '',
+          full_name: '',
+          phone: '',
+          role: 'inspector',
+        });
+      }
+    } catch (err) {
+      alert('Greška: ' + (err as Error).message);
+    } finally {
+      setIsCreating(false);
+    }
+  };
 
   // Open edit dialog
   const handleEdit = (user: User) => {
@@ -179,22 +253,72 @@ export default function UsersPage() {
             <DialogHeader>
               <DialogTitle>Dodaj novog korisnika</DialogTitle>
               <DialogDescription>
-                Novi korisnici se kreiraju kroz Supabase Dashboard → Authentication → Users
+                Kreiraj novog korisnika sa odabranom ulogom
               </DialogDescription>
             </DialogHeader>
-            <div className="py-4 text-sm text-muted-foreground">
-              <p>Za kreiranje novog korisnika:</p>
-              <ol className="list-decimal list-inside mt-2 space-y-1">
-                <li>Otvori Supabase Dashboard</li>
-                <li>Idi na Authentication → Users</li>
-                <li>Klikni "Add user"</li>
-                <li>Unesi email i lozinku</li>
-                <li>Profil će se automatski kreirati</li>
-              </ol>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="new_email">Email *</Label>
+                <Input
+                  id="new_email"
+                  type="email"
+                  value={newUserForm.email}
+                  onChange={(e) => setNewUserForm({ ...newUserForm, email: e.target.value })}
+                  placeholder="korisnik@email.com"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="new_password">Lozinka *</Label>
+                <Input
+                  id="new_password"
+                  type="password"
+                  value={newUserForm.password}
+                  onChange={(e) => setNewUserForm({ ...newUserForm, password: e.target.value })}
+                  placeholder="Minimalno 6 karaktera"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="new_fullName">Ime i prezime *</Label>
+                <Input
+                  id="new_fullName"
+                  value={newUserForm.full_name}
+                  onChange={(e) => setNewUserForm({ ...newUserForm, full_name: e.target.value })}
+                  placeholder="Ime Prezime"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="new_phone">Telefon</Label>
+                <Input
+                  id="new_phone"
+                  value={newUserForm.phone}
+                  onChange={(e) => setNewUserForm({ ...newUserForm, phone: e.target.value })}
+                  placeholder="+382 67 ..."
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="new_role">Uloga *</Label>
+                <Select value={newUserForm.role} onValueChange={(v) => setNewUserForm({ ...newUserForm, role: v })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="inspector">Inspektor (Teren)</SelectItem>
+                    <SelectItem value="operator">Operater (Naplata)</SelectItem>
+                    <SelectItem value="manager">Menadžer (Ugovori)</SelectItem>
+                    <SelectItem value="admin">Administrator</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex justify-end gap-2 pt-4">
+                <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+                  Odustani
+                </Button>
+                <Button onClick={handleCreateUser} disabled={isCreating}>
+                  {isCreating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Kreiraj korisnika
+                </Button>
+              </div>
             </div>
-            <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
-              Zatvori
-            </Button>
           </DialogContent>
         </Dialog>
       </div>
