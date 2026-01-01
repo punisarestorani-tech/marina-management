@@ -19,6 +19,7 @@ import {
   ScrollText,
   LogOut,
   Calendar,
+  ClipboardCheck,
 } from 'lucide-react';
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -33,6 +34,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   settings: Settings,
   scroll: ScrollText,
   calendar: Calendar,
+  'clipboard-check': ClipboardCheck,
 };
 
 export function Sidebar() {
