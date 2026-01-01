@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -30,7 +30,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Search, Map, Ship, Droplets, Zap, Pencil, Ruler } from 'lucide-react';
+import { Search, Map, Ship, Droplets, Zap, Pencil, Ruler, RefreshCw, Loader2 } from 'lucide-react';
+import { getSupabaseClient } from '@/lib/supabase/client';
 
 interface BerthData {
   id: string;
@@ -48,27 +49,95 @@ interface BerthData {
   maxVesselWidth: number | null;
 }
 
-// Mock data with new fields
-const initialBerths: BerthData[] = [
-  { id: 'a0000001', code: 'A-01', pontoon: 'A', length: 10.0, width: 3.0, dailyRate: 50, status: 'active', occupancyStatus: 'occupied', vessel: 'HR-1234-AB', hasWater: true, hasElectricity: true, maxVesselLength: 9.5, maxVesselWidth: 2.7 },
-  { id: 'a0000002', code: 'A-02', pontoon: 'A', length: 12.0, width: 3.5, dailyRate: 60, status: 'active', occupancyStatus: 'occupied', vessel: 'HR-5678-CD', hasWater: true, hasElectricity: true, maxVesselLength: 11.5, maxVesselWidth: 3.2 },
-  { id: 'a0000003', code: 'A-03', pontoon: 'A', length: 10.0, width: 3.0, dailyRate: 50, status: 'active', occupancyStatus: 'free', vessel: null, hasWater: false, hasElectricity: true, maxVesselLength: 9.5, maxVesselWidth: 2.7 },
-  { id: 'a0000004', code: 'A-04', pontoon: 'A', length: 14.0, width: 4.0, dailyRate: 70, status: 'active', occupancyStatus: 'occupied', vessel: 'IT-9012-EF', hasWater: true, hasElectricity: true, maxVesselLength: 13.5, maxVesselWidth: 3.7 },
-  { id: 'a0000005', code: 'A-05', pontoon: 'A', length: 10.0, width: 3.0, dailyRate: 50, status: 'active', occupancyStatus: 'reserved', vessel: null, hasWater: false, hasElectricity: false, maxVesselLength: 9.5, maxVesselWidth: 2.7 },
-  { id: 'b0000001', code: 'B-01', pontoon: 'B', length: 14.0, width: 4.0, dailyRate: 70, status: 'active', occupancyStatus: 'occupied', vessel: 'HR-3456-GH', hasWater: true, hasElectricity: true, maxVesselLength: 13.5, maxVesselWidth: 3.7 },
-  { id: 'b0000002', code: 'B-02', pontoon: 'B', length: 14.0, width: 4.0, dailyRate: 70, status: 'active', occupancyStatus: 'free', vessel: null, hasWater: true, hasElectricity: true, maxVesselLength: 13.5, maxVesselWidth: 3.7 },
-  { id: 'b0000003', code: 'B-03', pontoon: 'B', length: 16.0, width: 4.5, dailyRate: 80, status: 'active', occupancyStatus: 'occupied', vessel: 'SLO-7890-IJ', hasWater: true, hasElectricity: true, maxVesselLength: 15.5, maxVesselWidth: 4.2 },
-  { id: 'c0000001', code: 'C-01', pontoon: 'C', length: 18.0, width: 5.0, dailyRate: 100, status: 'active', occupancyStatus: 'occupied', vessel: 'AT-6789-MN', hasWater: true, hasElectricity: true, maxVesselLength: 17.5, maxVesselWidth: 4.7 },
-  { id: 'c0000002', code: 'C-02', pontoon: 'C', length: 20.0, width: 5.5, dailyRate: 120, status: 'active', occupancyStatus: 'occupied', vessel: 'DE-4567-QR', hasWater: true, hasElectricity: true, maxVesselLength: 19.5, maxVesselWidth: 5.2 },
-];
-
 export default function BerthsPage() {
-  const [berths, setBerths] = useState<BerthData[]>(initialBerths);
+  const [berths, setBerths] = useState<BerthData[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filterPontoon, setFilterPontoon] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [editingBerth, setEditingBerth] = useState<BerthData | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Fetch berths from Supabase
+  const fetchBerths = async () => {
+    setIsLoading(true);
+    try {
+      const supabase = getSupabaseClient();
+      const today = new Date().toISOString().split('T')[0];
+
+      // Fetch berths with pontoon info
+      const { data: berthsData, error: berthsError } = await supabase
+        .from('berths')
+        .select(`
+          id,
+          code,
+          width,
+          length,
+          daily_rate,
+          status,
+          has_water,
+          has_electricity,
+          max_vessel_length,
+          max_vessel_width,
+          pontoons!berths_pontoon_id_fkey (
+            code
+          )
+        `)
+        .order('code');
+
+      if (berthsError) throw berthsError;
+
+      // Fetch active bookings to determine occupancy status
+      const { data: bookingsData } = await supabase
+        .from('berth_bookings')
+        .select('berth_code, vessel_registration, status')
+        .in('status', ['checked_in', 'confirmed', 'pending'])
+        .lte('check_in_date', today)
+        .gt('check_out_date', today);
+
+      // Create a map of berth_code to booking info
+      const bookingMap = new Map<string, { vessel: string | null; status: string }>();
+      bookingsData?.forEach((booking) => {
+        bookingMap.set(booking.berth_code, {
+          vessel: booking.vessel_registration,
+          status: booking.status === 'checked_in' ? 'occupied' : 'reserved',
+        });
+      });
+
+      // Transform data
+      const transformedBerths: BerthData[] = (berthsData || []).map((berth: any) => {
+        const booking = bookingMap.get(berth.code);
+        const pontoonCode = berth.code.split('-')[0] || 'A';
+
+        return {
+          id: berth.id,
+          code: berth.code,
+          pontoon: pontoonCode,
+          length: berth.length || 0,
+          width: berth.width || 0,
+          dailyRate: berth.daily_rate || 0,
+          status: berth.status || 'active',
+          occupancyStatus: booking?.status || 'free',
+          vessel: booking?.vessel || null,
+          hasWater: berth.has_water || false,
+          hasElectricity: berth.has_electricity || false,
+          maxVesselLength: berth.max_vessel_length,
+          maxVesselWidth: berth.max_vessel_width,
+        };
+      });
+
+      setBerths(transformedBerths);
+    } catch (error) {
+      console.error('Error fetching berths:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchBerths();
+  }, []);
 
   const filteredBerths = berths.filter((berth) => {
     const matchesSearch =
@@ -78,6 +147,9 @@ export default function BerthsPage() {
     const matchesStatus = filterStatus === 'all' || berth.occupancyStatus === filterStatus;
     return matchesSearch && matchesPontoon && matchesStatus;
   });
+
+  // Get unique pontoons for filter
+  const pontoons = [...new Set(berths.map((b) => b.pontoon))].sort();
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -96,11 +168,43 @@ export default function BerthsPage() {
     setIsDialogOpen(true);
   };
 
-  const handleSaveBerth = () => {
+  const handleSaveBerth = async () => {
     if (!editingBerth) return;
-    setBerths(berths.map(b => b.id === editingBerth.id ? editingBerth : b));
-    setIsDialogOpen(false);
-    setEditingBerth(null);
+
+    setIsSaving(true);
+    try {
+      const supabase = getSupabaseClient();
+
+      const { error } = await supabase
+        .from('berths')
+        .update({
+          has_water: editingBerth.hasWater,
+          has_electricity: editingBerth.hasElectricity,
+          max_vessel_length: editingBerth.maxVesselLength,
+          max_vessel_width: editingBerth.maxVesselWidth,
+        })
+        .eq('id', editingBerth.id);
+
+      if (error) throw error;
+
+      // Update local state
+      setBerths(berths.map((b) => (b.id === editingBerth.id ? editingBerth : b)));
+      setIsDialogOpen(false);
+      setEditingBerth(null);
+    } catch (error) {
+      console.error('Error saving berth:', error);
+      alert('Greška pri spremanju: ' + (error as Error).message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Stats
+  const stats = {
+    total: berths.length,
+    free: berths.filter((b) => b.occupancyStatus === 'free').length,
+    occupied: berths.filter((b) => b.occupancyStatus === 'occupied').length,
+    reserved: berths.filter((b) => b.occupancyStatus === 'reserved').length,
   };
 
   return (
@@ -110,12 +214,54 @@ export default function BerthsPage() {
           <h1 className="text-2xl font-bold tracking-tight">Vezovi</h1>
           <p className="text-muted-foreground">Pregled svih vezova u marini</p>
         </div>
-        <Button asChild>
-          <Link href="/map">
-            <Map className="mr-2 h-4 w-4" />
-            Otvori Mapu
-          </Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={fetchBerths} disabled={isLoading}>
+            <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+            Osvježi
+          </Button>
+          <Button asChild>
+            <Link href="/map">
+              <Map className="mr-2 h-4 w-4" />
+              Otvori Mapu
+            </Link>
+          </Button>
+        </div>
+      </div>
+
+      {/* Stats cards */}
+      <div className="grid gap-4 md:grid-cols-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Ukupno vezova</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.total}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-green-600">Slobodni</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">{stats.free}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-red-600">Zauzeti</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-red-600">{stats.occupied}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-yellow-600">Rezervisani</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-yellow-600">{stats.reserved}</div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Filters */}
@@ -137,9 +283,11 @@ export default function BerthsPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Svi pontoni</SelectItem>
-                <SelectItem value="A">Ponton A</SelectItem>
-                <SelectItem value="B">Ponton B</SelectItem>
-                <SelectItem value="C">Ponton C</SelectItem>
+                {pontoons.map((p) => (
+                  <SelectItem key={p} value={p}>
+                    Ponton {p}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
             <Select value={filterStatus} onValueChange={setFilterStatus}>
@@ -166,77 +314,86 @@ export default function BerthsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Kod</TableHead>
-                <TableHead>Ponton</TableHead>
-                <TableHead>Dimenzije veza</TableHead>
-                <TableHead>Max. plovilo</TableHead>
-                <TableHead>Priključci</TableHead>
-                <TableHead>Cijena/dan</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Plovilo</TableHead>
-                <TableHead className="w-[50px]"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredBerths.map((berth) => (
-                <TableRow key={berth.id}>
-                  <TableCell className="font-medium">{berth.code}</TableCell>
-                  <TableCell>{berth.pontoon}</TableCell>
-                  <TableCell>
-                    {berth.length}m x {berth.width}m
-                  </TableCell>
-                  <TableCell>
-                    {berth.maxVesselLength && berth.maxVesselWidth ? (
-                      <div className="flex items-center gap-1 text-sm">
-                        <Ruler className="h-3 w-3 text-muted-foreground" />
-                        {berth.maxVesselLength}m x {berth.maxVesselWidth}m
-                      </div>
-                    ) : (
-                      <span className="text-muted-foreground">-</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <span title={berth.hasWater ? 'Ima vodu' : 'Nema vodu'}>
-                        <Droplets
-                          className={`h-4 w-4 ${berth.hasWater ? 'text-blue-500' : 'text-gray-300'}`}
-                        />
-                      </span>
-                      <span title={berth.hasElectricity ? 'Ima struju' : 'Nema struju'}>
-                        <Zap
-                          className={`h-4 w-4 ${berth.hasElectricity ? 'text-yellow-500' : 'text-gray-300'}`}
-                        />
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell>{berth.dailyRate} EUR</TableCell>
-                  <TableCell>{getStatusBadge(berth.occupancyStatus)}</TableCell>
-                  <TableCell>
-                    {berth.vessel ? (
-                      <div className="flex items-center gap-1">
-                        <Ship className="h-4 w-4 text-muted-foreground" />
-                        {berth.vessel}
-                      </div>
-                    ) : (
-                      <span className="text-muted-foreground">-</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleEditBerth(berth)}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                  </TableCell>
+          {isLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : berths.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <p>Nema vezova u bazi.</p>
+              <p className="text-sm mt-2">
+                Pokrenite SQL migraciju 005_demo_data.sql u Supabase SQL Editoru.
+              </p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Kod</TableHead>
+                  <TableHead>Ponton</TableHead>
+                  <TableHead>Dimenzije veza</TableHead>
+                  <TableHead>Max. plovilo</TableHead>
+                  <TableHead>Priključci</TableHead>
+                  <TableHead>Cijena/dan</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Plovilo</TableHead>
+                  <TableHead className="w-[50px]"></TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {filteredBerths.map((berth) => (
+                  <TableRow key={berth.id}>
+                    <TableCell className="font-medium">{berth.code}</TableCell>
+                    <TableCell>{berth.pontoon}</TableCell>
+                    <TableCell>
+                      {berth.length}m x {berth.width}m
+                    </TableCell>
+                    <TableCell>
+                      {berth.maxVesselLength && berth.maxVesselWidth ? (
+                        <div className="flex items-center gap-1 text-sm">
+                          <Ruler className="h-3 w-3 text-muted-foreground" />
+                          {berth.maxVesselLength}m x {berth.maxVesselWidth}m
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <span title={berth.hasWater ? 'Ima vodu' : 'Nema vodu'}>
+                          <Droplets
+                            className={`h-4 w-4 ${berth.hasWater ? 'text-blue-500' : 'text-gray-300'}`}
+                          />
+                        </span>
+                        <span title={berth.hasElectricity ? 'Ima struju' : 'Nema struju'}>
+                          <Zap
+                            className={`h-4 w-4 ${berth.hasElectricity ? 'text-yellow-500' : 'text-gray-300'}`}
+                          />
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell>{berth.dailyRate} EUR</TableCell>
+                    <TableCell>{getStatusBadge(berth.occupancyStatus)}</TableCell>
+                    <TableCell>
+                      {berth.vessel ? (
+                        <div className="flex items-center gap-1">
+                          <Ship className="h-4 w-4 text-muted-foreground" />
+                          {berth.vessel}
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Button variant="ghost" size="icon" onClick={() => handleEditBerth(berth)}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
 
@@ -259,7 +416,9 @@ export default function BerthsPage() {
                     <input
                       type="checkbox"
                       checked={editingBerth.hasWater}
-                      onChange={(e) => setEditingBerth({ ...editingBerth, hasWater: e.target.checked })}
+                      onChange={(e) =>
+                        setEditingBerth({ ...editingBerth, hasWater: e.target.checked })
+                      }
                       className="h-4 w-4 rounded border-gray-300"
                     />
                     <Droplets className="h-4 w-4 text-blue-500" />
@@ -269,7 +428,9 @@ export default function BerthsPage() {
                     <input
                       type="checkbox"
                       checked={editingBerth.hasElectricity}
-                      onChange={(e) => setEditingBerth({ ...editingBerth, hasElectricity: e.target.checked })}
+                      onChange={(e) =>
+                        setEditingBerth({ ...editingBerth, hasElectricity: e.target.checked })
+                      }
                       className="h-4 w-4 rounded border-gray-300"
                     />
                     <Zap className="h-4 w-4 text-yellow-500" />
@@ -291,10 +452,12 @@ export default function BerthsPage() {
                       type="number"
                       step="0.1"
                       value={editingBerth.maxVesselLength || ''}
-                      onChange={(e) => setEditingBerth({
-                        ...editingBerth,
-                        maxVesselLength: e.target.value ? parseFloat(e.target.value) : null
-                      })}
+                      onChange={(e) =>
+                        setEditingBerth({
+                          ...editingBerth,
+                          maxVesselLength: e.target.value ? parseFloat(e.target.value) : null,
+                        })
+                      }
                       placeholder="npr. 12.5"
                     />
                   </div>
@@ -307,10 +470,12 @@ export default function BerthsPage() {
                       type="number"
                       step="0.1"
                       value={editingBerth.maxVesselWidth || ''}
-                      onChange={(e) => setEditingBerth({
-                        ...editingBerth,
-                        maxVesselWidth: e.target.value ? parseFloat(e.target.value) : null
-                      })}
+                      onChange={(e) =>
+                        setEditingBerth({
+                          ...editingBerth,
+                          maxVesselWidth: e.target.value ? parseFloat(e.target.value) : null,
+                        })
+                      }
                       placeholder="npr. 4.0"
                     />
                   </div>
@@ -321,7 +486,9 @@ export default function BerthsPage() {
               <div className="rounded-lg bg-muted p-3 text-sm">
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <Ruler className="h-4 w-4" />
-                  <span>Dimenzije veza: {editingBerth.length}m x {editingBerth.width}m</span>
+                  <span>
+                    Dimenzije veza: {editingBerth.length}m x {editingBerth.width}m
+                  </span>
                 </div>
               </div>
             </div>
@@ -330,7 +497,8 @@ export default function BerthsPage() {
             <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
               Odustani
             </Button>
-            <Button onClick={handleSaveBerth}>
+            <Button onClick={handleSaveBerth} disabled={isSaving}>
+              {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Sačuvaj izmjene
             </Button>
           </DialogFooter>
