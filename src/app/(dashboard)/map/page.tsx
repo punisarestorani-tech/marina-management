@@ -115,9 +115,14 @@ export default function MapPage() {
 
         // Process reservations to know which berths have active bookings
         const reservedCodes = new Set<string>();
+        const checkedInCodes = new Set<string>();
         if (reservationsResult.data && reservationsResult.data.length > 0) {
           reservationsResult.data.forEach((booking) => {
-            reservedCodes.add(booking.berth_code);
+            if (booking.status === 'checked_in') {
+              checkedInCodes.add(booking.berth_code);
+            } else {
+              reservedCodes.add(booking.berth_code);
+            }
           });
         }
         setReservedBerthCodes(reservedCodes);
@@ -139,13 +144,14 @@ export default function MapPage() {
               lng = polygon[0][1] || lng;
             }
 
-            // Set status: occupied > reserved > free
+            // Set status: occupied/checked_in > reserved > free
             const isOccupied = occupiedBerthCodes.has(berth.code);
+            const isCheckedIn = checkedInCodes.has(berth.code);
             const isReserved = reservedCodes.has(berth.code);
             const assignedBoat = loadedBoats.find(b => b.berthCode === berth.code);
 
             let status: 'occupied' | 'reserved' | 'free' = 'free';
-            if (isOccupied) {
+            if (isOccupied || isCheckedIn) {
               status = 'occupied';
             } else if (isReserved) {
               status = 'reserved';

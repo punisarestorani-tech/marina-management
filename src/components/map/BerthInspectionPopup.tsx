@@ -169,41 +169,16 @@ export function BerthInspectionPopup({
         });
       }
 
-      // If correct vessel confirmed, create boat_placement to mark berth as occupied (red)
-      if (status === 'correct') {
-        // Determine boat size based on vessel length
-        const vesselLength = reservation?.vessel_length || 10;
-        let boatSize: 'xs' | 's' | 'm' | 'l' | 'xl' = 'm';
-        if (vesselLength < 5) boatSize = 'xs';
-        else if (vesselLength < 8) boatSize = 's';
-        else if (vesselLength < 12) boatSize = 'm';
-        else if (vesselLength < 18) boatSize = 'l';
-        else boatSize = 'xl';
+      // If correct vessel confirmed, update reservation to 'checked_in' to mark berth as occupied (red)
+      if (status === 'correct' && reservation) {
+        const { error: updateError } = await supabase
+          .from('berth_bookings')
+          .update({ status: 'checked_in' })
+          .eq('id', reservation.id);
 
-        // First remove any existing placement for this berth
-        const { error: deleteError } = await supabase
-          .from('boat_placements')
-          .delete()
-          .eq('berth_code', marker.code);
-
-        if (deleteError) {
-          console.error('Delete error:', deleteError);
-        }
-
-        // Create new boat placement
-        const { error: insertError } = await supabase.from('boat_placements').insert({
-          berth_code: marker.code,
-          latitude: marker.position.lat,
-          longitude: marker.position.lng,
-          size: boatSize,
-          vessel_name: expectedName,
-          vessel_registration: expectedReg,
-          placed_by_name: inspectorName,
-        });
-
-        if (insertError) {
-          console.error('Boat placement error:', insertError);
-          alert('Greska pri kreiranju boat_placement: ' + insertError.message);
+        if (updateError) {
+          console.error('Update reservation error:', updateError);
+          alert('Greska pri azuriranju rezervacije: ' + updateError.message);
         }
       }
 
