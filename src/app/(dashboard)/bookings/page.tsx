@@ -1,22 +1,21 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
   Calendar,
   List,
   Plus,
   Search,
-  Filter,
   ChevronLeft,
   ChevronRight,
   Ship,
   Users,
   DollarSign,
   Clock,
+  Loader2,
 } from 'lucide-react';
 import { BookingCalendar, BookingTimeline } from '@/components/booking/BookingCalendar';
 import { BookingForm } from '@/components/booking/BookingForm';
@@ -30,104 +29,14 @@ import {
   formatCurrency,
 } from '@/types/booking.types';
 import { useAuthStore } from '@/stores/authStore';
+import { getSupabaseClient } from '@/lib/supabase/client';
 
-// Demo data - in production this comes from API
-const DEMO_BERTHS = [
-  { id: 'b1', code: 'A-01', type: 'transit' as const, dailyRate: 50 },
-  { id: 'b2', code: 'A-02', type: 'transit' as const, dailyRate: 55 },
-  { id: 'b3', code: 'A-03', type: 'transit' as const, dailyRate: 60 },
-  { id: 'b4', code: 'B-01', type: 'transit' as const, dailyRate: 70 },
-  { id: 'b5', code: 'B-02', type: 'transit' as const, dailyRate: 75 },
-  { id: 'b6', code: 'C-01', type: 'communal' as const, dailyRate: 0 },
-];
-
-const DEMO_BOOKINGS: Booking[] = [
-  {
-    id: '1',
-    berthId: 'b1',
-    berthCode: 'A-01',
-    checkInDate: '2026-01-02',
-    checkOutDate: '2026-01-05',
-    guestName: 'Marco Rossi',
-    guestEmail: 'marco@example.com',
-    guestPhone: '+39 123 456 789',
-    guestCountry: 'Italija',
-    vesselName: 'Bella Mare',
-    vesselRegistration: 'IT-1234',
-    vesselType: 'sailboat',
-    vesselLength: 12,
-    status: 'checked_in',
-    pricePerDay: 50,
-    totalNights: 3,
-    subtotal: 150,
-    discountPercent: 0,
-    discountAmount: 0,
-    taxPercent: 13,
-    taxAmount: 19.5,
-    totalAmount: 169.5,
-    paymentStatus: 'paid',
-    amountPaid: 169.5,
-    source: 'online',
-    createdAt: '2025-12-15T10:00:00Z',
-    updatedAt: '2026-01-02T14:00:00Z',
-  },
-  {
-    id: '2',
-    berthId: 'b2',
-    berthCode: 'A-02',
-    checkInDate: '2026-01-05',
-    checkOutDate: '2026-01-10',
-    guestName: 'Hans Mueller',
-    guestEmail: 'hans@example.de',
-    guestPhone: '+49 987 654 321',
-    guestCountry: 'Njemačka',
-    vesselName: 'Seestern',
-    vesselRegistration: 'DE-5678',
-    vesselType: 'motorboat',
-    vesselLength: 15,
-    status: 'confirmed',
-    pricePerDay: 55,
-    totalNights: 5,
-    subtotal: 275,
-    discountPercent: 10,
-    discountAmount: 27.5,
-    taxPercent: 13,
-    taxAmount: 32.18,
-    totalAmount: 279.68,
-    paymentStatus: 'partial',
-    amountPaid: 100,
-    source: 'phone',
-    createdAt: '2025-12-20T15:00:00Z',
-    updatedAt: '2025-12-20T15:00:00Z',
-  },
-  {
-    id: '3',
-    berthId: 'b4',
-    berthCode: 'B-01',
-    checkInDate: '2026-01-08',
-    checkOutDate: '2026-01-15',
-    guestName: 'Jean Dupont',
-    guestEmail: 'jean@example.fr',
-    guestCountry: 'Francuska',
-    vesselName: 'Liberté',
-    vesselType: 'yacht',
-    vesselLength: 18,
-    status: 'pending',
-    pricePerDay: 70,
-    totalNights: 7,
-    subtotal: 490,
-    discountPercent: 0,
-    discountAmount: 0,
-    taxPercent: 13,
-    taxAmount: 63.7,
-    totalAmount: 553.7,
-    paymentStatus: 'unpaid',
-    amountPaid: 0,
-    source: 'email',
-    createdAt: '2025-12-28T09:00:00Z',
-    updatedAt: '2025-12-28T09:00:00Z',
-  },
-];
+interface BerthOption {
+  id: string;
+  code: string;
+  type: 'transit' | 'communal';
+  dailyRate: number;
+}
 
 type ViewMode = 'calendar' | 'timeline' | 'list';
 
@@ -135,7 +44,9 @@ export default function BookingsPage() {
   const user = useAuthStore((state) => state.user);
   const [viewMode, setViewMode] = useState<ViewMode>('timeline');
   const [selectedBerth, setSelectedBerth] = useState<string | null>(null);
-  const [bookings, setBookings] = useState<Booking[]>(DEMO_BOOKINGS);
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [berths, setBerths] = useState<BerthOption[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
   const [newBookingDates, setNewBookingDates] = useState<{
@@ -151,6 +62,76 @@ export default function BookingsPage() {
     today.setDate(today.getDate() - 2);
     return today.toISOString().split('T')[0];
   });
+
+  // Load berths and bookings from database
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const supabase = getSupabaseClient();
+
+        // Load berths
+        const { data: berthsData } = await supabase
+          .from('berths')
+          .select('id, code, berth_type, daily_rate_summer')
+          .eq('status', 'active')
+          .order('code');
+
+        if (berthsData) {
+          setBerths(berthsData.map(b => ({
+            id: b.id,
+            code: b.code,
+            type: (b.berth_type || 'transit') as 'transit' | 'communal',
+            dailyRate: b.daily_rate_summer || 50,
+          })));
+        }
+
+        // Load bookings
+        const { data: bookingsData } = await supabase
+          .from('berth_bookings')
+          .select('*')
+          .order('check_in_date', { ascending: true });
+
+        if (bookingsData) {
+          setBookings(bookingsData.map(b => ({
+            id: b.id,
+            berthId: b.berth_id,
+            berthCode: b.berth_code,
+            checkInDate: b.check_in_date,
+            checkOutDate: b.check_out_date,
+            guestName: b.guest_name,
+            guestEmail: b.guest_email,
+            guestPhone: b.guest_phone,
+            guestCountry: b.guest_country,
+            vesselName: b.vessel_name,
+            vesselRegistration: b.vessel_registration,
+            vesselType: b.vessel_type,
+            vesselLength: b.vessel_length,
+            status: b.status as BookingStatus,
+            pricePerDay: Number(b.price_per_day),
+            totalNights: b.total_nights,
+            subtotal: Number(b.subtotal),
+            discountPercent: Number(b.discount_percent || 0),
+            discountAmount: Number(b.discount_amount || 0),
+            taxPercent: Number(b.tax_percent || 0),
+            taxAmount: Number(b.tax_amount || 0),
+            totalAmount: Number(b.total_amount),
+            paymentStatus: b.payment_status,
+            amountPaid: Number(b.amount_paid || 0),
+            source: b.source,
+            notes: b.notes,
+            createdAt: b.created_at,
+            updatedAt: b.updated_at,
+          })));
+        }
+      } catch (err) {
+        console.error('Error loading data:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadData();
+  }, []);
 
   // Get today's stats
   const todayStats = useMemo(() => {
@@ -185,7 +166,6 @@ export default function BookingsPage() {
 
   // Handle new booking
   const handleNewBooking = (berthId: string, berthCode: string, checkIn: string, checkOut: string) => {
-    const berth = DEMO_BERTHS.find((b) => b.id === berthId);
     setNewBookingDates({
       berthId,
       berthCode,
@@ -205,22 +185,42 @@ export default function BookingsPage() {
 
   // Handle save booking
   const handleSaveBooking = async (data: BookingFormData) => {
-    // Simulate API call
-    await new Promise((r) => setTimeout(r, 500));
+    const supabase = getSupabaseClient();
 
     if (editingBooking) {
       // Update existing
+      const { error } = await supabase
+        .from('berth_bookings')
+        .update({
+          berth_code: data.berthCode,
+          check_in_date: data.checkInDate,
+          check_out_date: data.checkOutDate,
+          guest_name: data.guestName,
+          guest_email: data.guestEmail,
+          guest_phone: data.guestPhone,
+          guest_country: data.guestCountry,
+          vessel_name: data.vesselName,
+          vessel_registration: data.vesselRegistration,
+          vessel_type: data.vesselType,
+          vessel_length: data.vesselLength,
+          price_per_day: data.pricePerDay,
+          discount_percent: data.discountPercent || 0,
+          tax_percent: data.taxPercent || 0,
+          notes: data.notes,
+          source: data.source,
+        })
+        .eq('id', editingBooking.id);
+
+      if (error) {
+        alert('Greska: ' + error.message);
+        return;
+      }
+
+      // Update local state
       setBookings((prev) =>
         prev.map((b) =>
           b.id === editingBooking.id
-            ? {
-                ...b,
-                ...data,
-                totalNights:
-                  (new Date(data.checkOutDate).getTime() - new Date(data.checkInDate).getTime()) /
-                  (1000 * 60 * 60 * 24),
-                updatedAt: new Date().toISOString(),
-              }
+            ? { ...b, ...data, updatedAt: new Date().toISOString() }
             : b
         )
       );
@@ -235,38 +235,74 @@ export default function BookingsPage() {
       const taxAmount = afterDiscount * ((data.taxPercent || 0) / 100);
       const totalAmount = afterDiscount + taxAmount;
 
-      const newBooking: Booking = {
-        id: `booking-${Date.now()}`,
-        berthId: data.berthId,
-        berthCode: data.berthCode,
-        checkInDate: data.checkInDate,
-        checkOutDate: data.checkOutDate,
-        guestName: data.guestName,
-        guestEmail: data.guestEmail,
-        guestPhone: data.guestPhone,
-        guestCountry: data.guestCountry,
-        vesselName: data.vesselName,
-        vesselRegistration: data.vesselRegistration,
-        vesselType: data.vesselType,
-        vesselLength: data.vesselLength,
-        status: 'pending',
-        pricePerDay: data.pricePerDay,
-        totalNights: nights,
-        subtotal,
-        discountPercent: data.discountPercent || 0,
-        discountAmount,
-        taxPercent: data.taxPercent || 0,
-        taxAmount,
-        totalAmount,
-        paymentStatus: 'unpaid',
-        amountPaid: 0,
-        source: data.source || 'direct',
-        notes: data.notes,
-        createdBy: user?.id,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      setBookings((prev) => [...prev, newBooking]);
+      const { data: newData, error } = await supabase
+        .from('berth_bookings')
+        .insert({
+          berth_id: data.berthId,
+          berth_code: data.berthCode,
+          check_in_date: data.checkInDate,
+          check_out_date: data.checkOutDate,
+          guest_name: data.guestName,
+          guest_email: data.guestEmail,
+          guest_phone: data.guestPhone,
+          guest_country: data.guestCountry,
+          vessel_name: data.vesselName,
+          vessel_registration: data.vesselRegistration,
+          vessel_type: data.vesselType,
+          vessel_length: data.vesselLength,
+          price_per_day: data.pricePerDay,
+          subtotal: subtotal,
+          discount_percent: data.discountPercent || 0,
+          discount_amount: discountAmount,
+          tax_percent: data.taxPercent || 0,
+          tax_amount: taxAmount,
+          total_amount: totalAmount,
+          notes: data.notes,
+          source: data.source || 'direct',
+          created_by: user?.id,
+        })
+        .select()
+        .single();
+
+      if (error) {
+        alert('Greska: ' + error.message);
+        return;
+      }
+
+      if (newData) {
+        const newBooking: Booking = {
+          id: newData.id,
+          berthId: newData.berth_id,
+          berthCode: newData.berth_code,
+          checkInDate: newData.check_in_date,
+          checkOutDate: newData.check_out_date,
+          guestName: newData.guest_name,
+          guestEmail: newData.guest_email,
+          guestPhone: newData.guest_phone,
+          guestCountry: newData.guest_country,
+          vesselName: newData.vessel_name,
+          vesselRegistration: newData.vessel_registration,
+          vesselType: newData.vessel_type,
+          vesselLength: newData.vessel_length,
+          status: 'pending',
+          pricePerDay: data.pricePerDay,
+          totalNights: nights,
+          subtotal,
+          discountPercent: data.discountPercent || 0,
+          discountAmount,
+          taxPercent: data.taxPercent || 0,
+          taxAmount,
+          totalAmount,
+          paymentStatus: 'unpaid',
+          amountPaid: 0,
+          source: data.source || 'direct',
+          notes: data.notes,
+          createdBy: user?.id,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        setBookings((prev) => [...prev, newBooking]);
+      }
     }
 
     setShowForm(false);
@@ -277,7 +313,18 @@ export default function BookingsPage() {
   // Handle status change
   const handleStatusChange = async (status: BookingStatus) => {
     if (!editingBooking) return;
-    await new Promise((r) => setTimeout(r, 300));
+
+    const supabase = getSupabaseClient();
+    const { error } = await supabase
+      .from('berth_bookings')
+      .update({ status })
+      .eq('id', editingBooking.id);
+
+    if (error) {
+      alert('Greska: ' + error.message);
+      return;
+    }
+
     setBookings((prev) =>
       prev.map((b) =>
         b.id === editingBooking.id
@@ -291,7 +338,8 @@ export default function BookingsPage() {
   // Handle payment
   const handlePayment = async (amount: number) => {
     if (!editingBooking) return;
-    await new Promise((r) => setTimeout(r, 300));
+
+    const supabase = getSupabaseClient();
     const newAmountPaid = editingBooking.amountPaid + amount;
     const newPaymentStatus =
       newAmountPaid >= editingBooking.totalAmount
@@ -299,6 +347,19 @@ export default function BookingsPage() {
         : newAmountPaid > 0
         ? 'partial'
         : 'unpaid';
+
+    const { error } = await supabase
+      .from('berth_bookings')
+      .update({
+        amount_paid: newAmountPaid,
+        payment_status: newPaymentStatus,
+      })
+      .eq('id', editingBooking.id);
+
+    if (error) {
+      alert('Greska: ' + error.message);
+      return;
+    }
 
     setBookings((prev) =>
       prev.map((b) =>
@@ -318,6 +379,16 @@ export default function BookingsPage() {
   };
 
   if (!user) return null;
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  const transitBerths = berths.filter(b => b.type === 'transit');
 
   return (
     <div className="space-y-6">
@@ -374,7 +445,7 @@ export default function BookingsPage() {
               <DollarSign className="w-5 h-5 text-yellow-600" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Čeka naplatu</p>
+              <p className="text-sm text-muted-foreground">Ceka naplatu</p>
               <p className="text-2xl font-bold">{todayStats.pendingPayments.length}</p>
             </div>
           </div>
@@ -414,7 +485,7 @@ export default function BookingsPage() {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
-              placeholder="Pretraži..."
+              placeholder="Pretrazi..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9 w-64"
@@ -426,8 +497,8 @@ export default function BookingsPage() {
             className="h-10 px-3 border rounded-md bg-background"
           >
             <option value="all">Svi statusi</option>
-            <option value="pending">Na čekanju</option>
-            <option value="confirmed">Potvrđeno</option>
+            <option value="pending">Na cekanju</option>
+            <option value="confirmed">Potvrdjeno</option>
             <option value="checked_in">Prijavljeni</option>
             <option value="checked_out">Odjavljeni</option>
             <option value="cancelled">Otkazano</option>
@@ -468,18 +539,24 @@ export default function BookingsPage() {
               </Button>
             </div>
           </div>
-          <BookingTimeline
-            berths={DEMO_BERTHS.filter((b) => b.type === 'transit')}
-            bookings={filteredBookings}
-            startDate={timelineStart}
-            days={21}
-            onBookingClick={handleBookingClick}
-            onCellClick={(berthId, berthCode, date) => {
-              const nextDay = new Date(date);
-              nextDay.setDate(nextDay.getDate() + 1);
-              handleNewBooking(berthId, berthCode, date, nextDay.toISOString().split('T')[0]);
-            }}
-          />
+          {transitBerths.length > 0 ? (
+            <BookingTimeline
+              berths={transitBerths}
+              bookings={filteredBookings}
+              startDate={timelineStart}
+              days={21}
+              onBookingClick={handleBookingClick}
+              onCellClick={(berthId, berthCode, date) => {
+                const nextDay = new Date(date);
+                nextDay.setDate(nextDay.getDate() + 1);
+                handleNewBooking(berthId, berthCode, date, nextDay.toISOString().split('T')[0]);
+              }}
+            />
+          ) : (
+            <p className="text-center text-muted-foreground py-8">
+              Nema vezova za prikaz. Dodajte vezove u bazu.
+            </p>
+          )}
         </Card>
       )}
 
@@ -489,7 +566,7 @@ export default function BookingsPage() {
           <Card className="p-4">
             <h3 className="font-semibold mb-3">Izaberi vez</h3>
             <div className="space-y-1">
-              {DEMO_BERTHS.filter((b) => b.type === 'transit').map((berth) => (
+              {transitBerths.map((berth) => (
                 <button
                   key={berth.id}
                   onClick={() => setSelectedBerth(berth.id)}
@@ -504,7 +581,7 @@ export default function BookingsPage() {
                 >
                   <span className="font-medium">{berth.code}</span>
                   <span className="text-sm text-muted-foreground ml-2">
-                    {formatCurrency(berth.dailyRate)}/noć
+                    {formatCurrency(berth.dailyRate)}/noc
                   </span>
                 </button>
               ))}
@@ -514,11 +591,11 @@ export default function BookingsPage() {
           <div className="col-span-2">
             {selectedBerth ? (
               <BookingCalendar
-                berthCode={DEMO_BERTHS.find((b) => b.id === selectedBerth)?.code || ''}
+                berthCode={berths.find((b) => b.id === selectedBerth)?.code || ''}
                 bookings={filteredBookings.filter((b) => b.berthId === selectedBerth)}
                 onBookingClick={handleBookingClick}
                 onNewBooking={(start, end) => {
-                  const berth = DEMO_BERTHS.find((b) => b.id === selectedBerth);
+                  const berth = berths.find((b) => b.id === selectedBerth);
                   if (berth) {
                     handleNewBooking(berth.id, berth.code, start, end);
                   }
@@ -537,68 +614,75 @@ export default function BookingsPage() {
       {viewMode === 'list' && (
         <Card>
           <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 dark:bg-gray-800">
-                <tr>
-                  <th className="px-4 py-3 text-left text-sm font-medium">Vez</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium">Gost</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium">Plovilo</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium">Dolazak</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium">Odlazak</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium">Status</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium">Plaćanje</th>
-                  <th className="px-4 py-3 text-right text-sm font-medium">Iznos</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {filteredBookings.map((booking) => (
-                  <tr
-                    key={booking.id}
-                    onClick={() => handleBookingClick(booking)}
-                    className="hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
-                  >
-                    <td className="px-4 py-3 font-medium">{booking.berthCode}</td>
-                    <td className="px-4 py-3">
-                      <div>{booking.guestName}</div>
-                      <div className="text-xs text-muted-foreground">{booking.guestCountry}</div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div>{booking.vesselName || '-'}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {booking.vesselRegistration}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-sm">{formatDate(booking.checkInDate)}</td>
-                    <td className="px-4 py-3 text-sm">{formatDate(booking.checkOutDate)}</td>
-                    <td className="px-4 py-3">
-                      <span
-                        className="px-2 py-1 rounded text-xs font-medium"
-                        style={{
-                          backgroundColor: BOOKING_STATUS_COLORS[booking.status].bg,
-                          color: BOOKING_STATUS_COLORS[booking.status].text,
-                        }}
-                      >
-                        {BOOKING_STATUS_COLORS[booking.status].label}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span
-                        className="px-2 py-1 rounded text-xs font-medium"
-                        style={{
-                          backgroundColor: PAYMENT_STATUS_COLORS[booking.paymentStatus].bg,
-                          color: PAYMENT_STATUS_COLORS[booking.paymentStatus].text,
-                        }}
-                      >
-                        {PAYMENT_STATUS_COLORS[booking.paymentStatus].label}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-right font-medium">
-                      {formatCurrency(booking.totalAmount)}
-                    </td>
+            {filteredBookings.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Ship className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                <p>Nema rezervacija</p>
+              </div>
+            ) : (
+              <table className="w-full">
+                <thead className="bg-gray-50 dark:bg-gray-800">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-sm font-medium">Vez</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium">Gost</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium">Plovilo</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium">Dolazak</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium">Odlazak</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium">Status</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium">Placanje</th>
+                    <th className="px-4 py-3 text-right text-sm font-medium">Iznos</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y">
+                  {filteredBookings.map((booking) => (
+                    <tr
+                      key={booking.id}
+                      onClick={() => handleBookingClick(booking)}
+                      className="hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
+                    >
+                      <td className="px-4 py-3 font-medium">{booking.berthCode}</td>
+                      <td className="px-4 py-3">
+                        <div>{booking.guestName}</div>
+                        <div className="text-xs text-muted-foreground">{booking.guestCountry}</div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div>{booking.vesselName || '-'}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {booking.vesselRegistration}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-sm">{formatDate(booking.checkInDate)}</td>
+                      <td className="px-4 py-3 text-sm">{formatDate(booking.checkOutDate)}</td>
+                      <td className="px-4 py-3">
+                        <span
+                          className="px-2 py-1 rounded text-xs font-medium"
+                          style={{
+                            backgroundColor: BOOKING_STATUS_COLORS[booking.status].bg,
+                            color: BOOKING_STATUS_COLORS[booking.status].text,
+                          }}
+                        >
+                          {BOOKING_STATUS_COLORS[booking.status].label}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span
+                          className="px-2 py-1 rounded text-xs font-medium"
+                          style={{
+                            backgroundColor: PAYMENT_STATUS_COLORS[booking.paymentStatus].bg,
+                            color: PAYMENT_STATUS_COLORS[booking.paymentStatus].text,
+                          }}
+                        >
+                          {PAYMENT_STATUS_COLORS[booking.paymentStatus].label}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right font-medium">
+                        {formatCurrency(booking.totalAmount)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         </Card>
       )}
@@ -609,14 +693,14 @@ export default function BookingsPage() {
           <div className="bg-white dark:bg-slate-900 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <BookingForm
-                berthId={newBookingDates?.berthId || editingBooking?.berthId || DEMO_BERTHS[0].id}
+                berthId={newBookingDates?.berthId || editingBooking?.berthId || berths[0]?.id || ''}
                 berthCode={
-                  newBookingDates?.berthCode || editingBooking?.berthCode || DEMO_BERTHS[0].code
+                  newBookingDates?.berthCode || editingBooking?.berthCode || berths[0]?.code || ''
                 }
                 defaultCheckIn={newBookingDates?.checkIn}
                 defaultCheckOut={newBookingDates?.checkOut}
                 defaultPricePerDay={
-                  DEMO_BERTHS.find(
+                  berths.find(
                     (b) => b.id === (newBookingDates?.berthId || editingBooking?.berthId)
                   )?.dailyRate || 50
                 }

@@ -38,6 +38,7 @@ export default function MapPage() {
   // Berth markers from database
   const [berthMarkers, setBerthMarkers] = useState<BerthMarker[]>(INITIAL_BERTH_MARKERS);
   const [isLoadingBerths, setIsLoadingBerths] = useState(true);
+  const [reservedBerthCodes, setReservedBerthCodes] = useState<Set<string>>(new Set());
 
   // Boats state
   const [boats, setBoats] = useState<BoatPlacement[]>([]);
@@ -68,16 +69,23 @@ export default function MapPage() {
     });
   }, [berthMarkers]);
 
-  // Load berths AND boats together, then set correct statuses
+  // Load berths, boats, AND reservations together, then set correct statuses
   useEffect(() => {
     const loadData = async () => {
       try {
         const supabase = getSupabaseClient();
+        const today = new Date().toISOString().split('T')[0];
 
-        // Load both in parallel
-        const [berthsResult, boatsResult] = await Promise.all([
+        // Load berths, boats, and active reservations in parallel
+        const [berthsResult, boatsResult, reservationsResult] = await Promise.all([
           supabase.from('berths').select('id, code, polygon, status').eq('status', 'active'),
           supabase.from('boat_placements').select('*'),
+          supabase
+            .from('berth_bookings')
+            .select('berth_code, check_in_date, check_out_date, status')
+            .in('status', ['confirmed', 'checked_in', 'pending'])
+            .lte('check_in_date', today)
+            .gte('check_out_date', today),
         ]);
 
         // Process boats first to know which berths are occupied
@@ -105,7 +113,16 @@ export default function MapPage() {
         }
         setBoats(loadedBoats);
 
-        // Process berths with correct status based on boats
+        // Process reservations to know which berths have active bookings
+        const reservedCodes = new Set<string>();
+        if (reservationsResult.data && reservationsResult.data.length > 0) {
+          reservationsResult.data.forEach((booking) => {
+            reservedCodes.add(booking.berth_code);
+          });
+        }
+        setReservedBerthCodes(reservedCodes);
+
+        // Process berths with correct status based on boats AND reservations
         if (berthsResult.data) {
           const seen = new Set<string>();
           const uniqueData = berthsResult.data.filter(b => {
@@ -122,16 +139,24 @@ export default function MapPage() {
               lng = polygon[0][1] || lng;
             }
 
-            // Set status based on whether there's a boat on this berth
+            // Set status: occupied > reserved > free
             const isOccupied = occupiedBerthCodes.has(berth.code);
+            const isReserved = reservedCodes.has(berth.code);
             const assignedBoat = loadedBoats.find(b => b.berthCode === berth.code);
+
+            let status: 'occupied' | 'reserved' | 'free' = 'free';
+            if (isOccupied) {
+              status = 'occupied';
+            } else if (isReserved) {
+              status = 'reserved';
+            }
 
             return {
               id: berth.id,
               code: berth.code,
               pontoon: berth.code.split('-')[0] || 'A',
               position: { lat, lng },
-              status: isOccupied ? 'occupied' as const : 'free' as const,
+              status,
               assignedBoatId: assignedBoat?.id,
               createdAt: new Date().toISOString(),
               updatedAt: new Date().toISOString(),
@@ -166,12 +191,24 @@ export default function MapPage() {
     // Get all berth codes that have boats
     const occupiedBerthCodes = new Set(boats.map(b => b.berthCode));
 
-    setBerthMarkers(prev => prev.map(marker => ({
-      ...marker,
-      status: occupiedBerthCodes.has(marker.code) ? 'occupied' as const : 'free' as const,
-      assignedBoatId: boats.find(b => b.berthCode === marker.code)?.id,
-    })));
-  }, [boatBerthCodes]); // Run when boat assignments change
+    setBerthMarkers(prev => prev.map(marker => {
+      const isOccupied = occupiedBerthCodes.has(marker.code);
+      const isReserved = reservedBerthCodes.has(marker.code);
+
+      let status: 'occupied' | 'reserved' | 'free' = 'free';
+      if (isOccupied) {
+        status = 'occupied';
+      } else if (isReserved) {
+        status = 'reserved';
+      }
+
+      return {
+        ...marker,
+        status,
+        assignedBoatId: boats.find(b => b.berthCode === marker.code)?.id,
+      };
+    }));
+  }, [boatBerthCodes, reservedBerthCodes]); // Run when boat assignments or reservations change
 
   const isManager = user?.role === 'manager' || user?.role === 'admin';
 
@@ -194,9 +231,19 @@ export default function MapPage() {
         alert('Unesite šifru veza prije postavljanja!');
         return;
       }
+
+      const code = newBerthCode.trim().toUpperCase();
+
+      // Check for duplicate berth code
+      const exists = berthMarkers.some(m => m.code === code);
+      if (exists) {
+        alert(`Vez ${code} već postoji! Izaberite drugu šifru.`);
+        return;
+      }
+
       const newMarker: BerthMarker = {
         id: `bm-${Date.now()}`,
-        code: newBerthCode.trim().toUpperCase(),
+        code: code,
         pontoon: newBerthPontoon,
         position: latlng,
         status: 'free',
@@ -205,10 +252,18 @@ export default function MapPage() {
       };
       setBerthMarkers((prev) => [...prev, newMarker]);
       setSelectedBerthMarker(newMarker);
-      const match = newBerthCode.match(/^([A-Z])-(\d+)$/);
+
+      // Auto-increment to next available number
+      const match = code.match(/^([A-Z])-(\d+)$/);
       if (match) {
-        const nextNum = parseInt(match[2]) + 1;
-        setNewBerthCode(`${match[1]}-${nextNum.toString().padStart(2, '0')}`);
+        let nextNum = parseInt(match[2]) + 1;
+        let nextCode = `${match[1]}-${nextNum.toString().padStart(2, '0')}`;
+        // Find next available number
+        while (berthMarkers.some(m => m.code === nextCode)) {
+          nextNum++;
+          nextCode = `${match[1]}-${nextNum.toString().padStart(2, '0')}`;
+        }
+        setNewBerthCode(nextCode);
       }
     } else if (boatPlacementMode && isManager) {
       const berthCode = newBoatBerthCode.trim() || `Vez-${boats.length + 1}`;
@@ -269,18 +324,30 @@ export default function MapPage() {
     }
   };
 
-  // Update berth statuses based on current boats
+  // Update berth statuses based on current boats and reservations
   const updateBerthStatuses = () => {
     const occupiedBerthCodes = new Set(boats.map(b => b.berthCode));
-    setBerthMarkers(prev => prev.map(marker => ({
-      ...marker,
-      status: occupiedBerthCodes.has(marker.code) ? 'occupied' : 'free',
-      assignedBoatId: boats.find(b => b.berthCode === marker.code)?.id,
-    })));
+    setBerthMarkers(prev => prev.map(marker => {
+      const isOccupied = occupiedBerthCodes.has(marker.code);
+      const isReserved = reservedBerthCodes.has(marker.code);
+
+      let status: 'occupied' | 'reserved' | 'free' = 'free';
+      if (isOccupied) {
+        status = 'occupied';
+      } else if (isReserved) {
+        status = 'reserved';
+      }
+
+      return {
+        ...marker,
+        status,
+        assignedBoatId: boats.find(b => b.berthCode === marker.code)?.id,
+      };
+    }));
   };
 
-  // Save everything to database
-  const handleSaveAll = async () => {
+  // Save boats to database
+  const handleSaveBoats = async () => {
     setIsSaving(true);
     try {
       const supabase = getSupabaseClient();
@@ -306,6 +373,76 @@ export default function MapPage() {
       alert(`Sačuvano ${boats.length} brodova!`);
     } catch (error) {
       console.error('Error saving:', error);
+      alert('Greška: ' + (error as Error).message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Save berth markers to database
+  const handleSaveBerths = async () => {
+    setIsSaving(true);
+    try {
+      const supabase = getSupabaseClient();
+
+      // Save each berth marker
+      for (const marker of berthMarkers) {
+        // Use upsert with code as the unique identifier
+        const { error } = await supabase.from('berths').upsert({
+          id: marker.id.startsWith('bm-') ? undefined : marker.id, // New markers have temp IDs
+          code: marker.code,
+          polygon: [[marker.position.lat, marker.position.lng]], // Store position as polygon first point
+          status: 'active',
+          berth_type: 'communal',
+        }, {
+          onConflict: 'code',
+        });
+
+        if (error) {
+          console.error('Error saving berth:', marker.code, error);
+        }
+      }
+
+      // Reload berths from database to get proper IDs
+      const { data: berthsData } = await supabase
+        .from('berths')
+        .select('id, code, polygon, status')
+        .eq('status', 'active')
+        .order('code');
+
+      if (berthsData) {
+        const occupiedBerthCodes = new Set(boats.map(b => b.berthCode));
+        const markers: BerthMarker[] = berthsData.map((berth) => {
+          const polygon = berth.polygon as number[][] || [];
+          let lat = 42.2886, lng = 18.8400;
+          if (polygon.length > 0) {
+            lat = polygon[0][0] || lat;
+            lng = polygon[0][1] || lng;
+          }
+
+          const isOccupied = occupiedBerthCodes.has(berth.code);
+          const isReserved = reservedBerthCodes.has(berth.code);
+
+          let status: 'occupied' | 'reserved' | 'free' = 'free';
+          if (isOccupied) status = 'occupied';
+          else if (isReserved) status = 'reserved';
+
+          return {
+            id: berth.id,
+            code: berth.code,
+            pontoon: berth.code.split('-')[0] || 'A',
+            position: { lat, lng },
+            status,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          };
+        });
+        setBerthMarkers(markers);
+      }
+
+      alert(`Sačuvano ${berthMarkers.length} vezova!`);
+    } catch (error) {
+      console.error('Error saving berths:', error);
       alert('Greška: ' + (error as Error).message);
     } finally {
       setIsSaving(false);
@@ -544,7 +681,7 @@ export default function MapPage() {
           )}
 
           {/* Save button */}
-          <Button onClick={handleSaveAll} className="w-full" disabled={isSaving}>
+          <Button onClick={handleSaveBoats} className="w-full" disabled={isSaving}>
             {isSaving ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
             Sačuvaj brodove ({boats.length})
           </Button>
@@ -611,6 +748,12 @@ export default function MapPage() {
               />
             </div>
           </div>
+
+          {/* Save berths button */}
+          <Button onClick={handleSaveBerths} className="w-full" disabled={isSaving}>
+            {isSaving ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+            Sačuvaj vezove ({berthMarkers.length})
+          </Button>
         </Card>
       )}
 
