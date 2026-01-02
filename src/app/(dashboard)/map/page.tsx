@@ -384,23 +384,47 @@ export default function MapPage() {
     setIsSaving(true);
     try {
       const supabase = getSupabaseClient();
+      let savedCount = 0;
+      let errorCount = 0;
 
       // Save each berth marker
       for (const marker of berthMarkers) {
-        // Use upsert with code as the unique identifier
-        const { error } = await supabase.from('berths').upsert({
-          id: marker.id.startsWith('bm-') ? undefined : marker.id, // New markers have temp IDs
-          code: marker.code,
-          polygon: [[marker.position.lat, marker.position.lng]], // Store position as polygon first point
-          status: 'active',
-          berth_type: 'communal',
-        }, {
-          onConflict: 'code',
-        });
+        const isNewMarker = marker.id.startsWith('bm-');
 
-        if (error) {
-          console.error('Error saving berth:', marker.code, error);
+        if (isNewMarker) {
+          // INSERT new berth (let database generate ID)
+          const { error } = await supabase.from('berths').insert({
+            code: marker.code,
+            polygon: [[marker.position.lat, marker.position.lng]],
+            status: 'active',
+            berth_type: 'communal',
+          });
+
+          if (error) {
+            console.error('Error inserting berth:', marker.code, error);
+            errorCount++;
+          } else {
+            savedCount++;
+          }
+        } else {
+          // UPDATE existing berth
+          const { error } = await supabase.from('berths')
+            .update({
+              polygon: [[marker.position.lat, marker.position.lng]],
+            })
+            .eq('id', marker.id);
+
+          if (error) {
+            console.error('Error updating berth:', marker.code, error);
+            errorCount++;
+          } else {
+            savedCount++;
+          }
         }
+      }
+
+      if (errorCount > 0) {
+        alert(`Greška: ${errorCount} vezova nije sačuvano. Provjerite konzolu.`);
       }
 
       // Reload berths from database to get proper IDs
@@ -440,7 +464,7 @@ export default function MapPage() {
         setBerthMarkers(markers);
       }
 
-      alert(`Sačuvano ${berthMarkers.length} vezova!`);
+      alert(`Sačuvano ${savedCount} vezova!`);
     } catch (error) {
       console.error('Error saving berths:', error);
       alert('Greška: ' + (error as Error).message);
