@@ -181,22 +181,30 @@ export function BerthInspectionPopup({
         else boatSize = 'xl';
 
         // First remove any existing placement for this berth
-        await supabase
+        const { error: deleteError } = await supabase
           .from('boat_placements')
           .delete()
           .eq('berth_code', marker.code);
 
+        if (deleteError) {
+          console.error('Delete error:', deleteError);
+        }
+
         // Create new boat placement
-        await supabase.from('boat_placements').insert({
+        const { error: insertError } = await supabase.from('boat_placements').insert({
           berth_code: marker.code,
           latitude: marker.position.lat,
           longitude: marker.position.lng,
           size: boatSize,
           vessel_name: expectedName,
           vessel_registration: expectedReg,
-          placed_by: inspectorId,
           placed_by_name: inspectorName,
         });
+
+        if (insertError) {
+          console.error('Boat placement error:', insertError);
+          alert('Greska pri kreiranju boat_placement: ' + insertError.message);
+        }
       }
 
       setSaved(true);
