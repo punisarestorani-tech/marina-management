@@ -68,25 +68,47 @@ export default function MapPage() {
     });
   }, [berthMarkers]);
 
-  // Load berths from database
+  // Load berths AND boats together, then set correct statuses
   useEffect(() => {
-    const loadBerths = async () => {
+    const loadData = async () => {
       try {
         const supabase = getSupabaseClient();
-        const { data, error } = await supabase
-          .from('berths')
-          .select('id, code, polygon, status')
-          .eq('status', 'active');
 
-        if (error) {
-          console.error('Error loading berths:', error);
-          return;
+        // Load both in parallel
+        const [berthsResult, boatsResult] = await Promise.all([
+          supabase.from('berths').select('id, code, polygon, status').eq('status', 'active'),
+          supabase.from('boat_placements').select('*'),
+        ]);
+
+        // Process boats first to know which berths are occupied
+        const loadedBoats: BoatPlacement[] = [];
+        const occupiedBerthCodes = new Set<string>();
+
+        if (boatsResult.data && boatsResult.data.length > 0) {
+          boatsResult.data.forEach((row) => {
+            loadedBoats.push({
+              id: row.id,
+              berthId: '',
+              berthCode: row.berth_code,
+              size: row.size as BoatPlacement['size'],
+              rotation: row.rotation || 0,
+              position: { lat: parseFloat(row.latitude), lng: parseFloat(row.longitude) },
+              vesselName: row.vessel_name || undefined,
+              vesselRegistration: row.vessel_registration || undefined,
+              vesselImageUrl: row.vessel_image_url || undefined,
+              placedBy: row.placed_by || 'unknown',
+              placedAt: row.created_at,
+              updatedAt: row.updated_at,
+            });
+            occupiedBerthCodes.add(row.berth_code);
+          });
         }
+        setBoats(loadedBoats);
 
-        if (data) {
-          // Deduplicate by code, keep first occurrence
+        // Process berths with correct status based on boats
+        if (berthsResult.data) {
           const seen = new Set<string>();
-          const uniqueData = data.filter(b => {
+          const uniqueData = berthsResult.data.filter(b => {
             if (seen.has(b.code)) return false;
             seen.add(b.code);
             return true;
@@ -99,12 +121,18 @@ export default function MapPage() {
               lat = polygon[0][0] || lat;
               lng = polygon[0][1] || lng;
             }
+
+            // Set status based on whether there's a boat on this berth
+            const isOccupied = occupiedBerthCodes.has(berth.code);
+            const assignedBoat = loadedBoats.find(b => b.berthCode === berth.code);
+
             return {
               id: berth.id,
               code: berth.code,
               pontoon: berth.code.split('-')[0] || 'A',
               position: { lat, lng },
-              status: 'free' as const,
+              status: isOccupied ? 'occupied' as const : 'free' as const,
+              assignedBoatId: assignedBoat?.id,
               createdAt: new Date().toISOString(),
               updatedAt: new Date().toISOString(),
             };
@@ -112,73 +140,38 @@ export default function MapPage() {
           setBerthMarkers(markers);
         }
       } catch (err) {
-        console.error('Error:', err);
+        console.error('Error loading data:', err);
       } finally {
         setIsLoadingBerths(false);
       }
     };
-    loadBerths();
+    loadData();
   }, []);
 
-  // Load boats from database
-  useEffect(() => {
-    const loadBoats = async () => {
-      try {
-        const supabase = getSupabaseClient();
-        const { data, error } = await supabase
-          .from('boat_placements')
-          .select('*');
-
-        if (error) {
-          console.error('Error loading boats:', error);
-          return;
-        }
-
-        if (data && data.length > 0) {
-          const loadedBoats: BoatPlacement[] = data.map((row) => ({
-            id: row.id,
-            berthId: '',
-            berthCode: row.berth_code,
-            size: row.size as BoatPlacement['size'],
-            rotation: row.rotation || 0,
-            position: { lat: parseFloat(row.latitude), lng: parseFloat(row.longitude) },
-            vesselName: row.vessel_name || undefined,
-            vesselRegistration: row.vessel_registration || undefined,
-            vesselImageUrl: row.vessel_image_url || undefined,
-            placedBy: row.placed_by || 'unknown',
-            placedAt: row.created_at,
-            updatedAt: row.updated_at,
-          }));
-          setBoats(loadedBoats);
-        }
-      } catch (err) {
-        console.error('Error loading boats:', err);
-      }
-    };
-    loadBoats();
-  }, []);
-
-  // Update berth marker statuses based on boats
-  // Track berth codes that have boats assigned
+  // Update berth marker statuses when boats change (after initial load)
   const boatBerthCodes = useMemo(() => {
     return boats.map(b => b.berthCode).join(',');
   }, [boats]);
 
+  const [initialLoadDone, setInitialLoadDone] = useState(false);
+
   useEffect(() => {
-    if (berthMarkers.length === 0) return;
+    // Skip on initial render, only run after data is loaded
+    if (!initialLoadDone && berthMarkers.length > 0) {
+      setInitialLoadDone(true);
+      return;
+    }
+    if (!initialLoadDone) return;
 
     // Get all berth codes that have boats
     const occupiedBerthCodes = new Set(boats.map(b => b.berthCode));
 
-    setBerthMarkers(prev => {
-      const updated = prev.map(marker => ({
-        ...marker,
-        status: occupiedBerthCodes.has(marker.code) ? 'occupied' as const : 'free' as const,
-        assignedBoatId: boats.find(b => b.berthCode === marker.code)?.id,
-      }));
-      return updated;
-    });
-  }, [boatBerthCodes, boats]); // Run when boat assignments change
+    setBerthMarkers(prev => prev.map(marker => ({
+      ...marker,
+      status: occupiedBerthCodes.has(marker.code) ? 'occupied' as const : 'free' as const,
+      assignedBoatId: boats.find(b => b.berthCode === marker.code)?.id,
+    })));
+  }, [boatBerthCodes]); // Run when boat assignments change
 
   const isManager = user?.role === 'manager' || user?.role === 'admin';
 
