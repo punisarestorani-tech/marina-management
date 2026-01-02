@@ -397,7 +397,7 @@ export default function MapPage() {
             code: marker.code,
             polygon: [[marker.position.lat, marker.position.lng]],
             status: 'active',
-            berth_type: 'communal',
+            berth_type: 'transit',
           });
 
           if (error) {
