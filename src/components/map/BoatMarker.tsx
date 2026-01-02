@@ -89,9 +89,6 @@ export function BoatMarker({
             <p className="text-xs text-gray-500">
               Veličina: {sizeInfo.label} ({sizeInfo.lengthRange})
             </p>
-            <p className="text-xs text-gray-500">
-              Rotacija: {boat.rotation}°
-            </p>
           </div>
         </div>
       </Popup>

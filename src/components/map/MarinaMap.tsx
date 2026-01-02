@@ -612,7 +612,6 @@ export function MarinaMap({
 
                 <div className="mt-2 pt-2 border-t text-xs text-gray-500">
                   <p>Veličina: {sizeInfo.label} ({sizeInfo.lengthRange})</p>
-                  <p>Rotacija: {boat.rotation}°</p>
                 </div>
 
                 {!boat.vesselImageUrl && (
