@@ -763,7 +763,7 @@ export default function MapPage() {
             </div>
 
             <div>
-              <Label className="text-xs mb-1 block">Šifra veza</Label>
+              <Label className="text-xs mb-1 block">Šifra sljedećeg veza</Label>
               <Input
                 value={newBerthCode}
                 onChange={(e) => setNewBerthCode(e.target.value.toUpperCase())}
