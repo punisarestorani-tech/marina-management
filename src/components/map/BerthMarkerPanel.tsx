@@ -248,16 +248,10 @@ export function BerthMarkerPanel({ marker, onClose, onNewBooking }: BerthMarkerP
   };
 
   return (
-    <Card className={`
-      absolute z-[1001] overflow-hidden shadow-xl
-      ${isMobileView
-        ? 'left-0 right-0 bottom-0 w-full rounded-b-none max-h-[70vh]'
-        : 'left-4 top-14 w-96 max-h-[calc(100vh-5rem)]'
-      }
-    `}>
+    <Card className="fixed md:absolute inset-x-2 bottom-2 md:inset-auto md:left-4 md:top-14 z-[1001] md:w-96 overflow-hidden shadow-xl max-h-[75vh] md:max-h-[calc(100vh-5rem)]">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
-          <CardTitle className={`flex items-center gap-2 ${isMobileView ? 'text-base' : 'text-lg'}`}>
+          <CardTitle className="flex items-center gap-2 text-base md:text-lg">
             Vez {marker.code}
             <Badge className={statusInfo.color}>{statusInfo.label}</Badge>
           </CardTitle>
@@ -267,7 +261,7 @@ export function BerthMarkerPanel({ marker, onClose, onNewBooking }: BerthMarkerP
         </div>
       </CardHeader>
 
-      <CardContent className={`overflow-y-auto ${isMobileView ? 'max-h-[calc(70vh-4rem)] pb-6' : 'max-h-[calc(100vh-12rem)]'}`}>
+      <CardContent className="overflow-y-auto max-h-[calc(75vh-4rem)] md:max-h-[calc(100vh-12rem)] pb-6">
         <Tabs defaultValue="inspection" className="w-full">
           <TabsList className="grid w-full grid-cols-3 mb-4">
             <TabsTrigger value="inspection" className="text-xs sm:text-sm">

@@ -597,10 +597,10 @@ export default function MapPage() {
 
       {/* Boat Placement Panel */}
       {boatPlacementMode && isManager && (
-        <Card className="absolute top-16 right-4 z-[1000] p-4 w-80">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold flex items-center gap-2">
-              <Ship className="w-5 h-5" />
+        <Card className="fixed md:absolute inset-x-2 bottom-2 md:inset-auto md:top-16 md:right-4 z-[1000] p-3 md:p-4 md:w-80 max-h-[70vh] md:max-h-none overflow-y-auto">
+          <div className="flex items-center justify-between mb-2 md:mb-3">
+            <h3 className="font-semibold flex items-center gap-2 text-sm md:text-base">
+              <Ship className="w-4 h-4 md:w-5 md:h-5" />
               Postavljanje brodova
             </h3>
             <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setBoatPlacementMode(false)}>
@@ -714,10 +714,10 @@ export default function MapPage() {
 
       {/* Berth Marker Mode Panel */}
       {berthMarkerMode && isManager && (
-        <Card className="absolute top-16 right-4 z-[1000] p-4 w-80">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold flex items-center gap-2">
-              <MapPin className="w-5 h-5" />
+        <Card className="fixed md:absolute inset-x-2 bottom-2 md:inset-auto md:top-16 md:right-4 z-[1000] p-3 md:p-4 md:w-80">
+          <div className="flex items-center justify-between mb-2 md:mb-3">
+            <h3 className="font-semibold flex items-center gap-2 text-sm md:text-base">
+              <MapPin className="w-4 h-4 md:w-5 md:h-5" />
               Označavanje vezova
             </h3>
             <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setBerthMarkerMode(false)}>

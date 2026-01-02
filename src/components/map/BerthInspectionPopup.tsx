@@ -127,12 +127,12 @@ export function BerthInspectionPopup({
   };
 
   return (
-    <Card className="absolute top-16 right-4 z-[1001] w-96 shadow-xl border-2 max-h-[calc(100vh-8rem)] overflow-y-auto">
-      <CardHeader className="pb-3 sticky top-0 bg-white dark:bg-slate-950 z-10">
+    <Card className="fixed md:absolute inset-x-2 bottom-2 md:inset-auto md:top-16 md:right-4 z-[1001] md:w-96 shadow-xl border-2 max-h-[80vh] md:max-h-[calc(100vh-8rem)] overflow-y-auto">
+      <CardHeader className="pb-2 md:pb-3 sticky top-0 bg-white dark:bg-slate-950 z-10">
         <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Anchor className="h-5 w-5 text-blue-600" />
-            Inspekcija veza {marker.code}
+          <CardTitle className="flex items-center gap-2 text-base md:text-lg">
+            <Anchor className="h-4 w-4 md:h-5 md:w-5 text-blue-600" />
+            Inspekcija {marker.code}
           </CardTitle>
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose}>
             <X className="h-4 w-4" />
@@ -140,19 +140,20 @@ export function BerthInspectionPopup({
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-3 md:space-y-4 p-3 md:p-6">
         {/* Berth Info */}
-        <div className="bg-blue-50 dark:bg-blue-900/30 rounded-lg p-3 border border-blue-200 dark:border-blue-800">
-          <div className="flex items-center gap-2 mb-1">
-            <MapPin className="h-4 w-4 text-blue-600" />
-            <span className="text-xs text-muted-foreground">Vez</span>
+        <div className="bg-blue-50 dark:bg-blue-900/30 rounded-lg p-2 md:p-3 border border-blue-200 dark:border-blue-800">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <MapPin className="h-4 w-4 text-blue-600" />
+              <p className="font-bold text-xl md:text-2xl text-blue-700 dark:text-blue-300">
+                {marker.code}
+              </p>
+            </div>
+            <Badge variant="outline">
+              Ponton {marker.pontoon}
+            </Badge>
           </div>
-          <p className="font-bold text-2xl text-blue-700 dark:text-blue-300">
-            {marker.code}
-          </p>
-          <Badge variant="outline" className="mt-1">
-            Ponton {marker.pontoon}
-          </Badge>
         </div>
 
         {/* Expected Boat Info */}
