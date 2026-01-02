@@ -5,7 +5,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { useAuthStore } from '@/stores/authStore';
 import { BerthMapData } from '@/types/database.types';
 import { BoatPlacement, BOAT_SIZES, BerthMarker } from '@/types/boat.types';
-import { BerthPanel, BerthMarkerPanel, OccupancyFormData } from '@/components/map';
+import { BerthPanel, BerthMarkerPanel, OccupancyFormData, BoatInspectionPopup } from '@/components/map';
 import { MapLegend } from '@/components/map/MarinaMap';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -54,6 +54,9 @@ export default function MapPage() {
   const [newBerthCode, setNewBerthCode] = useState('');
   const [newBerthPontoon, setNewBerthPontoon] = useState('A');
   const [isSaving, setIsSaving] = useState(false);
+
+  // Inspection mode - boat clicked for inspection
+  const [inspectionBoat, setInspectionBoat] = useState<BoatPlacement | null>(null);
 
   // Get unique berths for dropdown (no duplicates)
   const uniqueBerths = useMemo(() => {
@@ -220,6 +223,11 @@ export default function MapPage() {
   const handleBoatClick = (boat: BoatPlacement) => {
     if (boatPlacementMode) {
       setSelectedBoat(boat);
+    } else {
+      // Open inspection popup
+      setInspectionBoat(boat);
+      setSelectedBerthMarker(null);
+      setSelectedBerth(null);
     }
   };
 
@@ -581,6 +589,19 @@ export default function MapPage() {
 
       {selectedBerthMarker && !boatPlacementMode && !berthMarkerMode && (
         <BerthMarkerPanel marker={selectedBerthMarker} onClose={handleCloseBerthMarkerPanel} onNewBooking={handleNewBooking} />
+      )}
+
+      {/* Inspection Popup - when clicking on a boat */}
+      {inspectionBoat && !boatPlacementMode && !berthMarkerMode && (
+        <BoatInspectionPopup
+          boat={inspectionBoat}
+          onClose={() => setInspectionBoat(null)}
+          onInspectionSaved={() => {
+            // Optionally refresh data
+          }}
+          inspectorId={user?.id}
+          inspectorName={user?.full_name}
+        />
       )}
     </div>
   );

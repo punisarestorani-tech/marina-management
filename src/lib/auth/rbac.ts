@@ -89,7 +89,6 @@ export interface NavItem {
 export const NAV_ITEMS: NavItem[] = [
   { label: 'Mapa', href: '/map', icon: 'map', permission: 'VIEW_MAP' },
   { label: 'Vezovi', href: '/berths', icon: 'anchor', permission: 'VIEW_MAP' },
-  { label: 'Inspekcija', href: '/inspection', icon: 'clipboard-check', permission: 'VIEW_INSPECTION' },
   { label: 'Rezervacije', href: '/bookings', icon: 'calendar', permission: 'VIEW_BOOKINGS' },
   { label: 'Plovila', href: '/vessels', icon: 'ship', permission: 'VIEW_VESSELS' },
   { label: 'Ugovori', href: '/contracts', icon: 'file-text', permission: 'VIEW_CONTRACTS' },
