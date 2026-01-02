@@ -5,7 +5,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { useAuthStore } from '@/stores/authStore';
 import { BerthMapData } from '@/types/database.types';
 import { BoatPlacement, BOAT_SIZES, BerthMarker } from '@/types/boat.types';
-import { BerthPanel, BerthMarkerPanel, OccupancyFormData, BoatInspectionPopup } from '@/components/map';
+import { BerthPanel, BerthMarkerPanel, OccupancyFormData, BerthInspectionPopup } from '@/components/map';
 import { MapLegend } from '@/components/map/MarinaMap';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -55,8 +55,8 @@ export default function MapPage() {
   const [newBerthPontoon, setNewBerthPontoon] = useState('A');
   const [isSaving, setIsSaving] = useState(false);
 
-  // Inspection mode - boat clicked for inspection
-  const [inspectionBoat, setInspectionBoat] = useState<BoatPlacement | null>(null);
+  // Inspection mode - berth clicked for inspection
+  const [inspectionBerth, setInspectionBerth] = useState<BerthMarker | null>(null);
 
   // Get unique berths for dropdown (no duplicates)
   const uniqueBerths = useMemo(() => {
@@ -220,14 +220,14 @@ export default function MapPage() {
     }
   };
 
+  // Find expected boat for a berth
+  const getExpectedBoatForBerth = (berthCode: string): BoatPlacement | null => {
+    return boats.find(b => b.berthCode === berthCode) || null;
+  };
+
   const handleBoatClick = (boat: BoatPlacement) => {
     if (boatPlacementMode) {
       setSelectedBoat(boat);
-    } else {
-      // Open inspection popup
-      setInspectionBoat(boat);
-      setSelectedBerthMarker(null);
-      setSelectedBerth(null);
     }
   };
 
@@ -288,7 +288,10 @@ export default function MapPage() {
     if (berthMarkerMode) {
       setSelectedBerthMarker(marker);
     } else if (!boatPlacementMode) {
-      setSelectedBerthMarker(marker);
+      // Open inspection popup for inspector
+      setInspectionBerth(marker);
+      setSelectedBerthMarker(null);
+      setSelectedBerth(null);
     }
   };
 
@@ -591,11 +594,12 @@ export default function MapPage() {
         <BerthMarkerPanel marker={selectedBerthMarker} onClose={handleCloseBerthMarkerPanel} onNewBooking={handleNewBooking} />
       )}
 
-      {/* Inspection Popup - when clicking on a boat */}
-      {inspectionBoat && !boatPlacementMode && !berthMarkerMode && (
-        <BoatInspectionPopup
-          boat={inspectionBoat}
-          onClose={() => setInspectionBoat(null)}
+      {/* Inspection Popup - when clicking on a berth marker */}
+      {inspectionBerth && !boatPlacementMode && !berthMarkerMode && (
+        <BerthInspectionPopup
+          marker={inspectionBerth}
+          expectedBoat={getExpectedBoatForBerth(inspectionBerth.code)}
+          onClose={() => setInspectionBerth(null)}
           onInspectionSaved={() => {
             // Optionally refresh data
           }}
