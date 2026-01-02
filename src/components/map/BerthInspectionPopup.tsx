@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -25,6 +25,8 @@ import {
   MapPin,
   Anchor,
   HelpCircle,
+  Calendar,
+  User,
 } from 'lucide-react';
 import { BerthMarker, BoatPlacement, BOAT_SIZES } from '@/types/boat.types';
 import {
@@ -33,6 +35,19 @@ import {
 } from '@/types/inspection.types';
 import { getSupabaseClient } from '@/lib/supabase/client';
 import { PhotoUpload } from '@/components/ui/photo-upload';
+
+// Reservation data interface
+interface ReservationData {
+  id: string;
+  guest_name: string;
+  guest_phone: string | null;
+  vessel_name: string | null;
+  vessel_registration: string | null;
+  vessel_length: number | null;
+  check_in_date: string;
+  check_out_date: string;
+  status: string;
+}
 
 interface BerthInspectionPopupProps {
   marker: BerthMarker;
@@ -61,7 +76,45 @@ export function BerthInspectionPopup({
   const [foundVesselRegistration, setFoundVesselRegistration] = useState('');
   const [foundVesselPhoto, setFoundVesselPhoto] = useState('');
 
+  // Reservation data
+  const [reservation, setReservation] = useState<ReservationData | null>(null);
+  const [isLoadingReservation, setIsLoadingReservation] = useState(true);
+
+  // Load current reservation for this berth
+  useEffect(() => {
+    const loadReservation = async () => {
+      try {
+        const supabase = getSupabaseClient();
+        const today = new Date().toISOString().split('T')[0];
+
+        const { data } = await supabase
+          .from('berth_bookings')
+          .select('id, guest_name, guest_phone, vessel_name, vessel_registration, vessel_length, check_in_date, check_out_date, status')
+          .eq('berth_code', marker.code)
+          .lte('check_in_date', today)
+          .gte('check_out_date', today)
+          .in('status', ['confirmed', 'checked_in', 'pending'])
+          .order('check_in_date', { ascending: false })
+          .limit(1)
+          .single();
+
+        if (data) {
+          setReservation(data);
+        }
+      } catch (err) {
+        // No reservation found is OK
+      } finally {
+        setIsLoadingReservation(false);
+      }
+    };
+
+    loadReservation();
+  }, [marker.code]);
+
   const sizeInfo = expectedBoat ? BOAT_SIZES[expectedBoat.size] : null;
+
+  // Determine if we have expected vessel info (from boat placement OR reservation)
+  const hasExpectedVessel = expectedBoat || reservation;
 
   const handleSaveInspection = async () => {
     if (!status) {
@@ -81,13 +134,17 @@ export function BerthInspectionPopup({
     try {
       const supabase = getSupabaseClient();
 
+      // Use reservation data if available, otherwise use boat placement data
+      const expectedName = reservation?.vessel_name || expectedBoat?.vesselName || null;
+      const expectedReg = reservation?.vessel_registration || expectedBoat?.vesselRegistration || null;
+
       const { error } = await supabase.from('inspections').insert({
         berth_code: marker.code,
         inspector_id: inspectorId,
         inspector_name: inspectorName,
         status: status,
-        expected_vessel_name: expectedBoat?.vesselName || null,
-        expected_vessel_registration: expectedBoat?.vesselRegistration || null,
+        expected_vessel_name: expectedName,
+        expected_vessel_registration: expectedReg,
         found_vessel_name: foundVesselName || null,
         found_vessel_registration: foundVesselRegistration || null,
         photo_url: foundVesselPhoto || null,
@@ -164,7 +221,11 @@ export function BerthInspectionPopup({
               OCEKIVANI BROD NA VEZU
             </p>
           </div>
-          {expectedBoat ? (
+          {isLoadingReservation ? (
+            <div className="p-4 text-center">
+              <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
+            </div>
+          ) : expectedBoat ? (
             <div className="p-3 space-y-2">
               {expectedBoat.vesselImageUrl && (
                 <img
@@ -190,6 +251,47 @@ export function BerthInspectionPopup({
                 )}
               </div>
             </div>
+          ) : reservation ? (
+            <div className="p-3 space-y-2">
+              <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-2 border border-yellow-200 dark:border-yellow-800">
+                <div className="flex items-center gap-2 text-yellow-700 dark:text-yellow-300">
+                  <Calendar className="h-4 w-4" />
+                  <span className="text-xs font-medium">REZERVACIJA</span>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div className="col-span-2">
+                  <p className="text-xs text-muted-foreground flex items-center gap-1">
+                    <User className="h-3 w-3" />
+                    Gost
+                  </p>
+                  <p className="font-semibold">{reservation.guest_name}</p>
+                  {reservation.guest_phone && (
+                    <p className="text-xs text-muted-foreground">{reservation.guest_phone}</p>
+                  )}
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Ime broda</p>
+                  <p className="font-semibold">{reservation.vessel_name || '-'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Registracija</p>
+                  <p className="font-semibold">{reservation.vessel_registration || '-'}</p>
+                </div>
+                {reservation.vessel_length && (
+                  <div>
+                    <p className="text-xs text-muted-foreground">Duzina</p>
+                    <p className="font-semibold">{reservation.vessel_length}m</p>
+                  </div>
+                )}
+                <div className="col-span-2">
+                  <p className="text-xs text-muted-foreground">Period</p>
+                  <p className="font-semibold">
+                    {new Date(reservation.check_in_date).toLocaleDateString('hr-HR')} - {new Date(reservation.check_out_date).toLocaleDateString('hr-HR')}
+                  </p>
+                </div>
+              </div>
+            </div>
           ) : (
             <div className="p-4 text-center text-muted-foreground">
               <HelpCircle className="h-8 w-8 mx-auto mb-2 opacity-50" />
@@ -208,7 +310,7 @@ export function BerthInspectionPopup({
                   <SelectValue placeholder="Odaberi status..." />
                 </SelectTrigger>
                 <SelectContent className="z-[9999]">
-                  {expectedBoat ? (
+                  {hasExpectedVessel ? (
                     <>
                       <SelectItem value="correct">
                         <span className="flex items-center gap-2">
