@@ -158,6 +158,28 @@ export default function MapPage() {
     loadBoats();
   }, []);
 
+  // Update berth marker statuses based on boats
+  // Track berth codes that have boats assigned
+  const boatBerthCodes = useMemo(() => {
+    return boats.map(b => b.berthCode).join(',');
+  }, [boats]);
+
+  useEffect(() => {
+    if (berthMarkers.length === 0) return;
+
+    // Get all berth codes that have boats
+    const occupiedBerthCodes = new Set(boats.map(b => b.berthCode));
+
+    setBerthMarkers(prev => {
+      const updated = prev.map(marker => ({
+        ...marker,
+        status: occupiedBerthCodes.has(marker.code) ? 'occupied' as const : 'free' as const,
+        assignedBoatId: boats.find(b => b.berthCode === marker.code)?.id,
+      }));
+      return updated;
+    });
+  }, [boatBerthCodes, boats]); // Run when boat assignments change
+
   const isManager = user?.role === 'manager' || user?.role === 'admin';
 
   const handleBerthClick = (berth: BerthMapData) => {
@@ -254,6 +276,16 @@ export default function MapPage() {
     }
   };
 
+  // Update berth statuses based on current boats
+  const updateBerthStatuses = () => {
+    const occupiedBerthCodes = new Set(boats.map(b => b.berthCode));
+    setBerthMarkers(prev => prev.map(marker => ({
+      ...marker,
+      status: occupiedBerthCodes.has(marker.code) ? 'occupied' : 'free',
+      assignedBoatId: boats.find(b => b.berthCode === marker.code)?.id,
+    })));
+  };
+
   // Save everything to database
   const handleSaveAll = async () => {
     setIsSaving(true);
@@ -274,6 +306,9 @@ export default function MapPage() {
           vessel_image_url: boat.vesselImageUrl || null,
         });
       }
+
+      // Update berth statuses after saving
+      updateBerthStatuses();
 
       alert(`Sačuvano ${boats.length} brodova!`);
     } catch (error) {
