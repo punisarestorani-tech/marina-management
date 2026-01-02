@@ -1,12 +1,16 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Ship, Calendar, Droplets, Zap, Ruler, User, Phone, ChevronLeft, ChevronRight, Plus, Check, Clock } from 'lucide-react';
+import { X, Ship, Calendar, Droplets, Zap, Ruler, User, Phone, ChevronLeft, ChevronRight, Plus, Check, Clock, ClipboardCheck, AlertTriangle, CheckCircle, XCircle, HelpCircle, Loader2, Wrench, Camera } from 'lucide-react';
 import { useViewModeStore } from '@/stores/viewModeStore';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { useAuthStore } from '@/stores/authStore';
 import { BerthMarker } from '@/types/boat.types';
 import { Booking, BOOKING_STATUS_COLORS, PAYMENT_STATUS_COLORS } from '@/types/booking.types';
 import { getSupabaseClient } from '@/lib/supabase/client';
@@ -63,6 +67,18 @@ export function BerthMarkerPanel({ marker, onClose, onNewBooking }: BerthMarkerP
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const viewMode = useViewModeStore((state) => state.viewMode);
   const isMobileView = viewMode === 'mobile';
+  const user = useAuthStore((state) => state.user);
+
+  // Inspection state
+  const [todayInspection, setTodayInspection] = useState<any>(null);
+  const [isSavingInspection, setIsSavingInspection] = useState(false);
+  const [inspectionSuccess, setInspectionSuccess] = useState(false);
+  const [showIssueForm, setShowIssueForm] = useState(false);
+  const [issueForm, setIssueForm] = useState({
+    found_vessel_name: '',
+    found_vessel_registration: '',
+    notes: '',
+  });
 
   // Fetch berth details and bookings
   useEffect(() => {
@@ -115,6 +131,88 @@ export function BerthMarkerPanel({ marker, onClose, onNewBooking }: BerthMarkerP
 
     fetchData();
   }, [marker.code]);
+
+  // Fetch today's inspection for this berth
+  useEffect(() => {
+    async function fetchTodayInspection() {
+      const supabase = getSupabaseClient();
+      const today = new Date().toISOString().split('T')[0];
+
+      const { data } = await supabase
+        .from('inspections')
+        .select('*')
+        .eq('berth_code', marker.code)
+        .gte('inspected_at', today)
+        .order('inspected_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (data) {
+        setTodayInspection(data);
+      }
+    }
+    fetchTodayInspection();
+  }, [marker.code]);
+
+  // Save inspection
+  const handleInspection = async (status: string) => {
+    setIsSavingInspection(true);
+    setInspectionSuccess(false);
+
+    try {
+      const supabase = getSupabaseClient();
+
+      const inspectionData = {
+        berth_code: marker.code,
+        berth_id: berthDetails?.id || null,
+        inspector_id: user?.id,
+        inspector_name: user?.full_name,
+        status: status,
+        expected_vessel_name: currentBooking?.vessel_name || null,
+        expected_vessel_registration: currentBooking?.vessel_registration || null,
+        found_vessel_name: issueForm.found_vessel_name || null,
+        found_vessel_registration: issueForm.found_vessel_registration || null,
+        notes: issueForm.notes || null,
+      };
+
+      const { data, error } = await supabase
+        .from('inspections')
+        .insert(inspectionData)
+        .select()
+        .single();
+
+      if (error) {
+        alert('Greška: ' + error.message);
+        return;
+      }
+
+      setTodayInspection(data);
+      setInspectionSuccess(true);
+      setShowIssueForm(false);
+      setIssueForm({ found_vessel_name: '', found_vessel_registration: '', notes: '' });
+
+      // Auto-create violation if issue found
+      if (['wrong_vessel', 'illegal_mooring'].includes(status)) {
+        await supabase.from('violations').insert({
+          inspection_id: data.id,
+          berth_code: marker.code,
+          violation_type: status === 'illegal_mooring' ? 'illegal_mooring' : 'wrong_berth',
+          vessel_name: issueForm.found_vessel_name || null,
+          vessel_registration: issueForm.found_vessel_registration || null,
+          description: issueForm.notes || `Pronađeno prilikom inspekcije veza ${marker.code}`,
+          reported_by: user?.id,
+          reported_by_name: user?.full_name,
+        });
+      }
+
+      // Hide success after 3 seconds
+      setTimeout(() => setInspectionSuccess(false), 3000);
+    } catch (err) {
+      alert('Greška: ' + (err as Error).message);
+    } finally {
+      setIsSavingInspection(false);
+    }
+  };
 
   // Get status badge
   const statusInfo = STATUS_LABELS[marker.status] || STATUS_LABELS.free;
@@ -170,11 +268,221 @@ export function BerthMarkerPanel({ marker, onClose, onNewBooking }: BerthMarkerP
       </CardHeader>
 
       <CardContent className={`overflow-y-auto ${isMobileView ? 'max-h-[calc(70vh-4rem)] pb-6' : 'max-h-[calc(100vh-12rem)]'}`}>
-        <Tabs defaultValue="details" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mb-4">
-            <TabsTrigger value="details">Detalji</TabsTrigger>
-            <TabsTrigger value="calendar">Kalendar</TabsTrigger>
+        <Tabs defaultValue="inspection" className="w-full">
+          <TabsList className="grid w-full grid-cols-3 mb-4">
+            <TabsTrigger value="inspection" className="text-xs sm:text-sm">
+              <ClipboardCheck className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+              Inspekcija
+            </TabsTrigger>
+            <TabsTrigger value="details" className="text-xs sm:text-sm">Detalji</TabsTrigger>
+            <TabsTrigger value="calendar" className="text-xs sm:text-sm">Kalendar</TabsTrigger>
           </TabsList>
+
+          {/* Inspection Tab */}
+          <TabsContent value="inspection" className="space-y-4 mt-0">
+            {/* Already inspected today */}
+            {todayInspection && !inspectionSuccess ? (
+              <div className="rounded-lg bg-green-50 dark:bg-green-950 p-4 text-center">
+                <CheckCircle className="w-10 h-10 text-green-500 mx-auto mb-2" />
+                <p className="font-medium text-green-700 dark:text-green-300">
+                  Već pregledano danas
+                </p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Status: {todayInspection.status === 'correct' ? '✅ Ispravno' :
+                    todayInspection.status === 'empty_ok' ? '✅ Prazan - OK' :
+                    todayInspection.status === 'wrong_vessel' ? '⚠️ Pogrešan brod' :
+                    todayInspection.status === 'illegal_mooring' ? '🚨 Nelegalno' :
+                    todayInspection.status === 'missing_vessel' ? '❓ Brod nije na vezu' : todayInspection.status}
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-3"
+                  onClick={() => setTodayInspection(null)}
+                >
+                  Ponovi inspekciju
+                </Button>
+              </div>
+            ) : inspectionSuccess ? (
+              <div className="rounded-lg bg-green-50 dark:bg-green-950 p-4 text-center">
+                <CheckCircle className="w-10 h-10 text-green-500 mx-auto mb-2" />
+                <p className="font-medium text-green-700 dark:text-green-300">
+                  Inspekcija sačuvana!
+                </p>
+              </div>
+            ) : (
+              <>
+                {/* Expected vessel info */}
+                {currentBooking ? (
+                  <div className="rounded-lg bg-blue-50 dark:bg-blue-950 p-3">
+                    <p className="text-xs text-blue-600 dark:text-blue-400 font-medium mb-1">
+                      OČEKIVANO PLOVILO:
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <Ship className="w-5 h-5 text-blue-600" />
+                      <div>
+                        <p className="font-bold">{currentBooking.vessel_name || 'Nepoznato ime'}</p>
+                        {currentBooking.vessel_registration && (
+                          <p className="text-sm text-muted-foreground">{currentBooking.vessel_registration}</p>
+                        )}
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Gost: {currentBooking.guest_name}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="rounded-lg bg-gray-100 dark:bg-gray-800 p-3 text-center">
+                    <p className="text-sm text-muted-foreground">
+                      Nema aktivne rezervacije - vez bi trebao biti prazan
+                    </p>
+                  </div>
+                )}
+
+                {/* Quick inspection buttons */}
+                {!showIssueForm ? (
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-center mb-3">Šta ste pronašli?</p>
+
+                    {currentBooking ? (
+                      <>
+                        {/* Occupied berth options */}
+                        <Button
+                          className="w-full h-14 text-left justify-start bg-green-500 hover:bg-green-600"
+                          onClick={() => handleInspection('correct')}
+                          disabled={isSavingInspection}
+                        >
+                          <CheckCircle className="w-6 h-6 mr-3" />
+                          <div>
+                            <p className="font-medium">Ispravan brod</p>
+                            <p className="text-xs opacity-80">Očekivano plovilo je na vezu</p>
+                          </div>
+                        </Button>
+
+                        <Button
+                          className="w-full h-14 text-left justify-start bg-orange-500 hover:bg-orange-600"
+                          onClick={() => setShowIssueForm(true)}
+                          disabled={isSavingInspection}
+                        >
+                          <AlertTriangle className="w-6 h-6 mr-3" />
+                          <div>
+                            <p className="font-medium">Pogrešan brod</p>
+                            <p className="text-xs opacity-80">Drugo plovilo na vezu</p>
+                          </div>
+                        </Button>
+
+                        <Button
+                          className="w-full h-14 text-left justify-start bg-yellow-500 hover:bg-yellow-600 text-black"
+                          onClick={() => handleInspection('missing_vessel')}
+                          disabled={isSavingInspection}
+                        >
+                          <HelpCircle className="w-6 h-6 mr-3" />
+                          <div>
+                            <p className="font-medium">Brod nije na vezu</p>
+                            <p className="text-xs opacity-80">Vez prazan, a ne bi trebao biti</p>
+                          </div>
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        {/* Free berth options */}
+                        <Button
+                          className="w-full h-14 text-left justify-start bg-green-500 hover:bg-green-600"
+                          onClick={() => handleInspection('empty_ok')}
+                          disabled={isSavingInspection}
+                        >
+                          <CheckCircle className="w-6 h-6 mr-3" />
+                          <div>
+                            <p className="font-medium">Prazan - OK</p>
+                            <p className="text-xs opacity-80">Vez je slobodan kako treba</p>
+                          </div>
+                        </Button>
+
+                        <Button
+                          className="w-full h-14 text-left justify-start bg-red-500 hover:bg-red-600"
+                          onClick={() => setShowIssueForm(true)}
+                          disabled={isSavingInspection}
+                        >
+                          <XCircle className="w-6 h-6 mr-3" />
+                          <div>
+                            <p className="font-medium">Nelegalno vezivanje</p>
+                            <p className="text-xs opacity-80">Neovlašteno plovilo na vezu</p>
+                          </div>
+                        </Button>
+                      </>
+                    )}
+
+                    {isSavingInspection && (
+                      <div className="flex items-center justify-center py-2">
+                        <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                        <span className="text-sm">Čuvam...</span>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  /* Issue reporting form */
+                  <div className="space-y-3 p-3 bg-orange-50 dark:bg-orange-950 rounded-lg">
+                    <p className="text-sm font-medium text-orange-700 dark:text-orange-300">
+                      Opišite pronađeno plovilo:
+                    </p>
+
+                    <div>
+                      <Label className="text-xs">Ime plovila</Label>
+                      <Input
+                        value={issueForm.found_vessel_name}
+                        onChange={(e) => setIssueForm({ ...issueForm, found_vessel_name: e.target.value })}
+                        placeholder="npr. Sea Dream"
+                        className="mt-1"
+                      />
+                    </div>
+
+                    <div>
+                      <Label className="text-xs">Registracija</Label>
+                      <Input
+                        value={issueForm.found_vessel_registration}
+                        onChange={(e) => setIssueForm({ ...issueForm, found_vessel_registration: e.target.value })}
+                        placeholder="npr. KO-123-AB"
+                        className="mt-1"
+                      />
+                    </div>
+
+                    <div>
+                      <Label className="text-xs">Napomena</Label>
+                      <Textarea
+                        value={issueForm.notes}
+                        onChange={(e) => setIssueForm({ ...issueForm, notes: e.target.value })}
+                        placeholder="Dodatne informacije..."
+                        rows={2}
+                        className="mt-1"
+                      />
+                    </div>
+
+                    <div className="flex gap-2 pt-2">
+                      <Button
+                        variant="outline"
+                        className="flex-1"
+                        onClick={() => setShowIssueForm(false)}
+                      >
+                        Nazad
+                      </Button>
+                      <Button
+                        className="flex-1 bg-red-500 hover:bg-red-600"
+                        onClick={() => handleInspection(currentBooking ? 'wrong_vessel' : 'illegal_mooring')}
+                        disabled={isSavingInspection}
+                      >
+                        {isSavingInspection ? (
+                          <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                        ) : (
+                          <AlertTriangle className="w-4 h-4 mr-2" />
+                        )}
+                        Prijavi
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </TabsContent>
 
           {/* Details Tab */}
           <TabsContent value="details" className="space-y-4 mt-0">
