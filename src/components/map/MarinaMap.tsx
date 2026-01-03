@@ -6,7 +6,7 @@ import L, { LatLngBoundsExpression, LatLngExpression } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { cn } from '@/lib/utils';
 import { BerthMapData } from '@/types/database.types';
-import { BoatPlacement, BerthMarker, BOAT_SIZES } from '@/types/boat.types';
+import { BerthMarker } from '@/types/boat.types';
 
 // Marina center - based on A-06 berth position
 const MARINA_CENTER: LatLngExpression = [42.2875, 18.8405];
@@ -59,20 +59,15 @@ const STATUS_COLORS = {
 
 interface MarinaMapProps {
   berths: BerthMapData[];
-  boats?: BoatPlacement[];
   berthMarkers?: BerthMarker[];
   onBerthClick?: (berth: BerthMapData) => void;
-  onBoatClick?: (boat: BoatPlacement) => void;
   onBerthMarkerClick?: (marker: BerthMarker) => void;
   selectedBerthId?: string | null;
-  selectedBoatId?: string | null;
   selectedBerthMarkerId?: string | null;
   className?: string;
   interactive?: boolean;
   onMapClick?: (latlng: { lat: number; lng: number }) => void;
-  boatPlacementMode?: boolean;
   berthMarkerMode?: boolean;
-  onBoatDragEnd?: (boat: BoatPlacement, newPosition: { lat: number; lng: number }) => void;
   onBerthMarkerDragEnd?: (marker: BerthMarker, newPosition: { lat: number; lng: number }) => void;
   showUserLocation?: boolean;
 }
@@ -235,62 +230,13 @@ function createBerthMarkerIcon(marker: BerthMarker, isSelected: boolean, zoom: n
   });
 }
 
-// Base sizes for boats at zoom level 19
-const BASE_BOAT_SIZES = {
-  xs: { width: 12, height: 24 },
-  s: { width: 16, height: 32 },
-  m: { width: 20, height: 40 },
-  l: { width: 26, height: 52 },
-  xl: { width: 32, height: 64 },
-};
-
-// Calculate icon size based on zoom level
-function getScaledSize(baseWidth: number, baseHeight: number, zoom: number): { width: number; height: number } {
-  // Scale factor: doubles size for each zoom level above 19, halves for each below
-  const baseZoom = 19;
-  const scaleFactor = Math.pow(2, (zoom - baseZoom));
-  return {
-    width: Math.max(8, Math.round(baseWidth * scaleFactor)),
-    height: Math.max(16, Math.round(baseHeight * scaleFactor)),
-  };
-}
-
-// Create boat icon with zoom-based scaling
-function createBoatIcon(boat: BoatPlacement, isSelected: boolean, zoom: number): L.DivIcon {
-  const sizeInfo = BOAT_SIZES[boat.size];
-  const baseSize = BASE_BOAT_SIZES[boat.size];
-  const scaledSize = getScaledSize(baseSize.width, baseSize.height, zoom);
-
-  return L.divIcon({
-    className: 'boat-marker-icon',
-    html: `
-      <div style="
-        width: ${scaledSize.width}px;
-        height: ${scaledSize.height}px;
-        transform: rotate(${boat.rotation}deg);
-        transform-origin: center center;
-        filter: ${isSelected ? 'drop-shadow(0 0 6px #3b82f6)' : 'drop-shadow(1px 1px 3px rgba(0,0,0,0.5))'};
-        cursor: pointer;
-        transition: width 0.1s, height 0.1s;
-      ">
-        <img src="${sizeInfo.iconPath}" alt="Boat" style="width: 100%; height: 100%;" />
-      </div>
-    `,
-    iconSize: [scaledSize.width, scaledSize.height],
-    iconAnchor: [scaledSize.width / 2, scaledSize.height / 2],
-    popupAnchor: [0, -scaledSize.height / 2],
-  });
-}
-
 // Component to handle map events
 function MapEventHandler({
   onMapClick,
-  boatPlacementMode,
   berthMarkerMode,
   onZoomChange,
 }: {
   onMapClick?: (latlng: { lat: number; lng: number }) => void;
-  boatPlacementMode?: boolean;
   berthMarkerMode?: boolean;
   onZoomChange?: (zoom: number) => void;
 }) {
@@ -298,7 +244,7 @@ function MapEventHandler({
 
   useMapEvents({
     click: (e) => {
-      if ((boatPlacementMode || berthMarkerMode) && onMapClick) {
+      if (berthMarkerMode && onMapClick) {
         onMapClick({ lat: e.latlng.lat, lng: e.latlng.lng });
         console.log(`Clicked at: [${e.latlng.lat.toFixed(6)}, ${e.latlng.lng.toFixed(6)}]`);
       }
@@ -374,20 +320,15 @@ function CenterOnLocationButton() {
 
 export function MarinaMap({
   berths,
-  boats = [],
   berthMarkers = [],
   onBerthClick,
-  onBoatClick,
   onBerthMarkerClick,
   selectedBerthId,
-  selectedBoatId,
   selectedBerthMarkerId,
   className,
   interactive = true,
   onMapClick,
-  boatPlacementMode = false,
   berthMarkerMode = false,
-  onBoatDragEnd,
   onBerthMarkerDragEnd,
   showUserLocation = true,
 }: MarinaMapProps) {
@@ -442,7 +383,7 @@ export function MarinaMap({
       attributionControl={false}
     >
       <MapController />
-      <MapEventHandler onMapClick={onMapClick} boatPlacementMode={boatPlacementMode} berthMarkerMode={berthMarkerMode} onZoomChange={handleZoomChange} />
+      <MapEventHandler onMapClick={onMapClick} berthMarkerMode={berthMarkerMode} onZoomChange={handleZoomChange} />
 
       {/* User location */}
       {showUserLocation && (
@@ -568,60 +509,6 @@ export function MarinaMap({
         );
       })}
 
-      {/* Boat markers */}
-      {boats.map((boat) => {
-        const isSelected = selectedBoatId === boat.id;
-        const icon = createBoatIcon(boat, isSelected, currentZoom);
-        const sizeInfo = BOAT_SIZES[boat.size];
-
-        return (
-          <Marker
-            key={boat.id}
-            position={[boat.position.lat, boat.position.lng]}
-            icon={icon}
-            draggable={boatPlacementMode}
-            eventHandlers={{
-              click: () => onBoatClick?.(boat),
-              dragend: (e) => {
-                const m = e.target;
-                const position = m.getLatLng();
-                onBoatDragEnd?.(boat, { lat: position.lat, lng: position.lng });
-              },
-            }}
-          >
-            <Popup minWidth={200} maxWidth={300}>
-              <div className="text-sm">
-                {/* Boat image */}
-                {boat.vesselImageUrl && (
-                  <div className="mb-2 -mx-2 -mt-2">
-                    <img
-                      src={boat.vesselImageUrl}
-                      alt={boat.vesselName || 'Plovilo'}
-                      className="w-full h-32 object-cover rounded-t"
-                    />
-                  </div>
-                )}
-
-                <p className="font-semibold text-base">Vez: {boat.berthCode}</p>
-                {boat.vesselName && (
-                  <p className="text-gray-700 font-medium">{boat.vesselName}</p>
-                )}
-                {boat.vesselRegistration && (
-                  <p className="text-gray-500 text-xs mb-2">{boat.vesselRegistration}</p>
-                )}
-
-                <div className="mt-2 pt-2 border-t text-xs text-gray-500">
-                  <p>Veličina: {sizeInfo.label} ({sizeInfo.lengthRange})</p>
-                </div>
-
-                {!boat.vesselImageUrl && (
-                  <p className="text-xs text-gray-400 italic mt-2">Nema slike plovila</p>
-                )}
-              </div>
-            </Popup>
-          </Marker>
-        );
-      })}
     </MapContainer>
   );
 }

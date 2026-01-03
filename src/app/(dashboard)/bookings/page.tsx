@@ -106,6 +106,7 @@ export default function BookingsPage() {
             vesselRegistration: b.vessel_registration,
             vesselType: b.vessel_type,
             vesselLength: b.vessel_length,
+            vesselImageUrl: b.vessel_image_url,
             status: b.status as BookingStatus,
             pricePerDay: Number(b.price_per_day),
             totalNights: b.total_nights,
@@ -203,6 +204,7 @@ export default function BookingsPage() {
           vessel_registration: data.vesselRegistration,
           vessel_type: data.vesselType,
           vessel_length: data.vesselLength,
+          vessel_image_url: data.vesselImageUrl,
           price_per_day: data.pricePerDay,
           discount_percent: data.discountPercent || 0,
           tax_percent: data.taxPercent || 0,
@@ -220,7 +222,7 @@ export default function BookingsPage() {
       setBookings((prev) =>
         prev.map((b) =>
           b.id === editingBooking.id
-            ? { ...b, ...data, updatedAt: new Date().toISOString() }
+            ? { ...b, ...data, vesselImageUrl: data.vesselImageUrl, updatedAt: new Date().toISOString() }
             : b
         )
       );
@@ -250,6 +252,7 @@ export default function BookingsPage() {
           vessel_registration: data.vesselRegistration,
           vessel_type: data.vesselType,
           vessel_length: data.vesselLength,
+          vessel_image_url: data.vesselImageUrl,
           price_per_day: data.pricePerDay,
           subtotal: subtotal,
           discount_percent: data.discountPercent || 0,
@@ -284,6 +287,7 @@ export default function BookingsPage() {
           vesselRegistration: newData.vessel_registration,
           vesselType: newData.vessel_type,
           vesselLength: newData.vessel_length,
+          vesselImageUrl: newData.vessel_image_url,
           status: 'pending',
           pricePerDay: data.pricePerDay,
           totalNights: nights,

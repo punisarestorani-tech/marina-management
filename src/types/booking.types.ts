@@ -57,6 +57,7 @@ export interface Booking {
   vesselWidth?: number;
   vesselDraft?: number;
   vesselFlag?: string;
+  vesselImageUrl?: string;
 
   // Status
   status: BookingStatus;
@@ -159,6 +160,7 @@ export interface BookingFormData {
   vesselRegistration?: string;
   vesselType?: VesselType;
   vesselLength?: number;
+  vesselImageUrl?: string;
   pricePerDay: number;
   discountPercent?: number;
   taxPercent?: number;

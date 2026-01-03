@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
-import { Loader2, Save, X, Calculator } from 'lucide-react';
+import { PhotoUpload } from '@/components/ui/photo-upload';
+import { Loader2, Save, X, Calculator, Ship } from 'lucide-react';
 import {
   Booking,
   BookingFormData,
@@ -68,6 +69,9 @@ export function BookingForm({
   const [vesselLength, setVesselLength] = useState<string>(
     existingBooking?.vesselLength?.toString() || ''
   );
+  const [vesselImageUrl, setVesselImageUrl] = useState<string>(
+    existingBooking?.vesselImageUrl || ''
+  );
   const [pricePerDay, setPricePerDay] = useState<string>(
     existingBooking?.pricePerDay?.toString() || defaultPricePerDay.toString()
   );
@@ -129,6 +133,7 @@ export function BookingForm({
       vesselRegistration: vesselRegistration.trim() || undefined,
       vesselType: vesselType || undefined,
       vesselLength: vesselLength ? parseFloat(vesselLength) : undefined,
+      vesselImageUrl: vesselImageUrl || undefined,
       pricePerDay: parseFloat(pricePerDay) || 0,
       discountPercent: parseFloat(discountPercent) || 0,
       taxPercent: parseFloat(taxPercent) || 0,
@@ -301,7 +306,10 @@ export function BookingForm({
 
       {/* Vessel info */}
       <Card className="p-4">
-        <h3 className="font-medium mb-3">Podaci o plovilu</h3>
+        <h3 className="font-medium mb-3 flex items-center gap-2">
+          <Ship className="w-4 h-4" />
+          Podaci o plovilu
+        </h3>
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -349,6 +357,20 @@ export function BookingForm({
                 value={vesselLength}
                 onChange={(e) => setVesselLength(e.target.value)}
                 placeholder="npr. 12.5"
+              />
+            </div>
+          </div>
+
+          {/* Vessel Photo */}
+          <div>
+            <Label>Fotografija plovila</Label>
+            <div className="mt-2">
+              <PhotoUpload
+                currentPhotoUrl={vesselImageUrl}
+                onPhotoUploaded={setVesselImageUrl}
+                onPhotoRemoved={() => setVesselImageUrl('')}
+                bucketName="vessel-photos"
+                folderPath="bookings"
               />
             </div>
           </div>

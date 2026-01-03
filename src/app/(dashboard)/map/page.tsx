@@ -4,15 +4,14 @@ import dynamic from 'next/dynamic';
 import { useState, useMemo, useEffect } from 'react';
 import { useAuthStore } from '@/stores/authStore';
 import { BerthMapData } from '@/types/database.types';
-import { BoatPlacement, BOAT_SIZES, BerthMarker } from '@/types/boat.types';
+import { BerthMarker } from '@/types/boat.types';
 import { BerthPanel, BerthMarkerPanel, OccupancyFormData, BerthInspectionPopup } from '@/components/map';
 import { MapLegend } from '@/components/map/MarinaMap';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Trash2, Save, Ship, RotateCw, MapPin, RefreshCw, X } from 'lucide-react';
-import { PhotoUpload } from '@/components/ui/photo-upload';
+import { Trash2, Save, MapPin, RefreshCw, X } from 'lucide-react';
 import { getSupabaseClient } from '@/lib/supabase/client';
 
 // Dynamic import to avoid SSR issues with Leaflet
@@ -40,15 +39,6 @@ export default function MapPage() {
   const [isLoadingBerths, setIsLoadingBerths] = useState(true);
   const [reservedBerthCodes, setReservedBerthCodes] = useState<Set<string>>(new Set());
 
-  // Boats state
-  const [boats, setBoats] = useState<BoatPlacement[]>([]);
-  const [boatPlacementMode, setBoatPlacementMode] = useState(false);
-  const [selectedBoat, setSelectedBoat] = useState<BoatPlacement | null>(null);
-  const [newBoatName, setNewBoatName] = useState('');
-  const [newBoatRegistration, setNewBoatRegistration] = useState('');
-  const [newBoatImageUrl, setNewBoatImageUrl] = useState('');
-  const [newBoatBerthCode, setNewBoatBerthCode] = useState('');
-
   // Berth marker mode
   const [berthMarkerMode, setBerthMarkerMode] = useState(false);
   const [selectedBerthMarker, setSelectedBerthMarker] = useState<BerthMarker | null>(null);
@@ -69,17 +59,16 @@ export default function MapPage() {
     });
   }, [berthMarkers]);
 
-  // Load berths, boats, AND reservations together, then set correct statuses
+  // Load berths and reservations to determine berth statuses
   useEffect(() => {
     const loadData = async () => {
       try {
         const supabase = getSupabaseClient();
         const today = new Date().toISOString().split('T')[0];
 
-        // Load berths, boats, and active reservations in parallel
-        const [berthsResult, boatsResult, reservationsResult] = await Promise.all([
+        // Load berths and active reservations in parallel
+        const [berthsResult, reservationsResult] = await Promise.all([
           supabase.from('berths').select('id, code, polygon, status').eq('status', 'active'),
-          supabase.from('boat_placements').select('*'),
           supabase
             .from('berth_bookings')
             .select('berth_code, check_in_date, check_out_date, status')
@@ -87,31 +76,6 @@ export default function MapPage() {
             .lte('check_in_date', today)
             .gte('check_out_date', today),
         ]);
-
-        // Process boats first to know which berths are occupied
-        const loadedBoats: BoatPlacement[] = [];
-        const occupiedBerthCodes = new Set<string>();
-
-        if (boatsResult.data && boatsResult.data.length > 0) {
-          boatsResult.data.forEach((row) => {
-            loadedBoats.push({
-              id: row.id,
-              berthId: '',
-              berthCode: row.berth_code,
-              size: row.size as BoatPlacement['size'],
-              rotation: row.rotation || 0,
-              position: { lat: parseFloat(row.latitude), lng: parseFloat(row.longitude) },
-              vesselName: row.vessel_name || undefined,
-              vesselRegistration: row.vessel_registration || undefined,
-              vesselImageUrl: row.vessel_image_url || undefined,
-              placedBy: row.placed_by || 'unknown',
-              placedAt: row.created_at,
-              updatedAt: row.updated_at,
-            });
-            occupiedBerthCodes.add(row.berth_code);
-          });
-        }
-        setBoats(loadedBoats);
 
         // Process reservations to know which berths have active bookings
         const reservedCodes = new Set<string>();
@@ -127,7 +91,7 @@ export default function MapPage() {
         }
         setReservedBerthCodes(reservedCodes);
 
-        // Process berths with correct status based on boats AND reservations
+        // Process berths with correct status based on reservations
         if (berthsResult.data) {
           const seen = new Set<string>();
           const uniqueData = berthsResult.data.filter(b => {
@@ -144,14 +108,12 @@ export default function MapPage() {
               lng = polygon[0][1] || lng;
             }
 
-            // Set status: occupied/checked_in > reserved > free
-            const isOccupied = occupiedBerthCodes.has(berth.code);
+            // Set status: checked_in (occupied) > reserved > free
             const isCheckedIn = checkedInCodes.has(berth.code);
             const isReserved = reservedCodes.has(berth.code);
-            const assignedBoat = loadedBoats.find(b => b.berthCode === berth.code);
 
             let status: 'occupied' | 'reserved' | 'free' = 'free';
-            if (isOccupied || isCheckedIn) {
+            if (isCheckedIn) {
               status = 'occupied';
             } else if (isReserved) {
               status = 'reserved';
@@ -163,7 +125,6 @@ export default function MapPage() {
               pontoon: berth.code.split('-')[0] || 'A',
               position: { lat, lng },
               status,
-              assignedBoatId: assignedBoat?.id,
               createdAt: new Date().toISOString(),
               updatedAt: new Date().toISOString(),
             };
@@ -179,47 +140,10 @@ export default function MapPage() {
     loadData();
   }, []);
 
-  // Update berth marker statuses when boats change (after initial load)
-  const boatBerthCodes = useMemo(() => {
-    return boats.map(b => b.berthCode).join(',');
-  }, [boats]);
-
-  const [initialLoadDone, setInitialLoadDone] = useState(false);
-
-  useEffect(() => {
-    // Skip on initial render, only run after data is loaded
-    if (!initialLoadDone && berthMarkers.length > 0) {
-      setInitialLoadDone(true);
-      return;
-    }
-    if (!initialLoadDone) return;
-
-    // Get all berth codes that have boats
-    const occupiedBerthCodes = new Set(boats.map(b => b.berthCode));
-
-    setBerthMarkers(prev => prev.map(marker => {
-      const isOccupied = occupiedBerthCodes.has(marker.code);
-      const isReserved = reservedBerthCodes.has(marker.code);
-
-      let status: 'occupied' | 'reserved' | 'free' = 'free';
-      if (isOccupied) {
-        status = 'occupied';
-      } else if (isReserved) {
-        status = 'reserved';
-      }
-
-      return {
-        ...marker,
-        status,
-        assignedBoatId: boats.find(b => b.berthCode === marker.code)?.id,
-      };
-    }));
-  }, [boatBerthCodes, reservedBerthCodes]); // Run when boat assignments or reservations change
-
   const isManager = user?.role === 'manager' || user?.role === 'admin';
 
   const handleBerthClick = (berth: BerthMapData) => {
-    if (!boatPlacementMode && !berthMarkerMode) {
+    if (!berthMarkerMode) {
       setSelectedBerth(berth);
     }
   };
@@ -271,117 +195,6 @@ export default function MapPage() {
         }
         setNewBerthCode(nextCode);
       }
-    } else if (boatPlacementMode && isManager) {
-      const berthCode = newBoatBerthCode.trim() || `Vez-${boats.length + 1}`;
-      const newBoat: BoatPlacement = {
-        id: crypto.randomUUID(),
-        berthId: '',
-        berthCode: berthCode,
-        size: 'm',
-        rotation: 0,
-        position: latlng,
-        vesselName: newBoatName || undefined,
-        vesselRegistration: newBoatRegistration || undefined,
-        vesselImageUrl: newBoatImageUrl || undefined,
-        placedBy: user?.id || 'unknown',
-        placedAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      setBoats((prev) => [...prev, newBoat]);
-      setSelectedBoat(newBoat);
-      setNewBoatName('');
-      setNewBoatRegistration('');
-      setNewBoatImageUrl('');
-      setNewBoatBerthCode('');
-    }
-  };
-
-  // Find expected boat for a berth
-  const getExpectedBoatForBerth = (berthCode: string): BoatPlacement | null => {
-    return boats.find(b => b.berthCode === berthCode) || null;
-  };
-
-  const handleBoatClick = (boat: BoatPlacement) => {
-    if (boatPlacementMode) {
-      setSelectedBoat(boat);
-    }
-  };
-
-  const handleBoatDragEnd = (boat: BoatPlacement, newPosition: { lat: number; lng: number }) => {
-    setBoats((prev) =>
-      prev.map((b) => b.id === boat.id ? { ...b, position: newPosition } : b)
-    );
-  };
-
-  const handleRotateBoat = (degrees: number) => {
-    if (selectedBoat) {
-      const newRotation = (selectedBoat.rotation + degrees + 360) % 360;
-      setBoats((prev) =>
-        prev.map((b) => b.id === selectedBoat.id ? { ...b, rotation: newRotation } : b)
-      );
-      setSelectedBoat({ ...selectedBoat, rotation: newRotation });
-    }
-  };
-
-  const handleDeleteBoat = () => {
-    if (selectedBoat) {
-      setBoats((prev) => prev.filter((b) => b.id !== selectedBoat.id));
-      setSelectedBoat(null);
-    }
-  };
-
-  // Update berth statuses based on current boats and reservations
-  const updateBerthStatuses = () => {
-    const occupiedBerthCodes = new Set(boats.map(b => b.berthCode));
-    setBerthMarkers(prev => prev.map(marker => {
-      const isOccupied = occupiedBerthCodes.has(marker.code);
-      const isReserved = reservedBerthCodes.has(marker.code);
-
-      let status: 'occupied' | 'reserved' | 'free' = 'free';
-      if (isOccupied) {
-        status = 'occupied';
-      } else if (isReserved) {
-        status = 'reserved';
-      }
-
-      return {
-        ...marker,
-        status,
-        assignedBoatId: boats.find(b => b.berthCode === marker.code)?.id,
-      };
-    }));
-  };
-
-  // Save boats to database
-  const handleSaveBoats = async () => {
-    setIsSaving(true);
-    try {
-      const supabase = getSupabaseClient();
-
-      // Save boats
-      for (const boat of boats) {
-        await supabase.from('boat_placements').upsert({
-          id: boat.id,
-          berth_code: boat.berthCode,
-          latitude: boat.position.lat,
-          longitude: boat.position.lng,
-          size: boat.size,
-          rotation: boat.rotation,
-          vessel_name: boat.vesselName || null,
-          vessel_registration: boat.vesselRegistration || null,
-          vessel_image_url: boat.vesselImageUrl || null,
-        });
-      }
-
-      // Update berth statuses after saving
-      updateBerthStatuses();
-
-      alert(`Sačuvano ${boats.length} brodova!`);
-    } catch (error) {
-      console.error('Error saving:', error);
-      alert('Greška: ' + (error as Error).message);
-    } finally {
-      setIsSaving(false);
     }
   };
 
@@ -441,7 +254,6 @@ export default function MapPage() {
         .order('code');
 
       if (berthsData) {
-        const occupiedBerthCodes = new Set(boats.map(b => b.berthCode));
         const markers: BerthMarker[] = berthsData.map((berth) => {
           const polygon = berth.polygon as number[][] || [];
           let lat = 42.2886, lng = 18.8400;
@@ -450,12 +262,10 @@ export default function MapPage() {
             lng = polygon[0][1] || lng;
           }
 
-          const isOccupied = occupiedBerthCodes.has(berth.code);
           const isReserved = reservedBerthCodes.has(berth.code);
 
           let status: 'occupied' | 'reserved' | 'free' = 'free';
-          if (isOccupied) status = 'occupied';
-          else if (isReserved) status = 'reserved';
+          if (isReserved) status = 'reserved';
 
           return {
             id: berth.id,
@@ -482,7 +292,7 @@ export default function MapPage() {
   const handleBerthMarkerClick = (marker: BerthMarker) => {
     if (berthMarkerMode) {
       setSelectedBerthMarker(marker);
-    } else if (!boatPlacementMode) {
+    } else {
       // Open inspection popup for inspector
       setInspectionBerth(marker);
       setSelectedBerthMarker(null);
@@ -524,8 +334,7 @@ export default function MapPage() {
 
   const stats = useMemo(() => ({
     berthMarkersCount: uniqueBerths.length,
-    boatsCount: boats.length,
-  }), [uniqueBerths.length, boats.length]);
+  }), [uniqueBerths.length]);
 
   if (!user) return null;
 
@@ -538,10 +347,6 @@ export default function MapPage() {
             <MapPin className="w-4 h-4 text-green-600" />
             <span>{stats.berthMarkersCount} vezova</span>
           </div>
-          <div className="flex items-center gap-1.5">
-            <Ship className="w-4 h-4 text-blue-600" />
-            <span>{stats.boatsCount} brodova</span>
-          </div>
         </div>
 
         <div className="flex items-center gap-2">
@@ -551,7 +356,6 @@ export default function MapPage() {
               size="sm"
               onClick={() => {
                 setBerthMarkerMode(!berthMarkerMode);
-                setBoatPlacementMode(false);
                 if (!berthMarkerMode && !newBerthCode) {
                   setNewBerthCode(`${newBerthPontoon}-01`);
                 }
@@ -561,21 +365,6 @@ export default function MapPage() {
               {berthMarkerMode ? 'Završi' : 'Označi vezove'}
             </Button>
           )}
-
-          {isManager && (
-            <Button
-              variant={boatPlacementMode ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => {
-                setBoatPlacementMode(!boatPlacementMode);
-                setBerthMarkerMode(false);
-                setSelectedBoat(null);
-              }}
-            >
-              <Ship className="w-4 h-4 mr-1" />
-              {boatPlacementMode ? 'Završi' : 'Postavi brodove'}
-            </Button>
-          )}
         </div>
       </div>
 
@@ -583,140 +372,18 @@ export default function MapPage() {
       <div className="h-full pt-10">
         <MarinaMap
           berths={BERTHS}
-          boats={boats}
           berthMarkers={berthMarkers}
           onBerthClick={handleBerthClick}
-          onBoatClick={handleBoatClick}
           onBerthMarkerClick={handleBerthMarkerClick}
           selectedBerthId={selectedBerth?.id}
-          selectedBoatId={selectedBoat?.id}
           selectedBerthMarkerId={selectedBerthMarker?.id}
-          boatPlacementMode={boatPlacementMode}
           berthMarkerMode={berthMarkerMode}
           onMapClick={handleMapClick}
-          onBoatDragEnd={handleBoatDragEnd}
           onBerthMarkerDragEnd={handleBerthMarkerDragEnd}
         />
       </div>
 
       <MapLegend />
-
-      {/* Boat Placement Panel */}
-      {boatPlacementMode && isManager && (
-        <Card className="fixed md:absolute inset-x-2 bottom-2 md:inset-auto md:top-16 md:right-4 z-[1000] p-3 md:p-4 md:w-80 max-h-[70vh] md:max-h-none overflow-y-auto">
-          <div className="flex items-center justify-between mb-2 md:mb-3">
-            <h3 className="font-semibold flex items-center gap-2 text-sm md:text-base">
-              <Ship className="w-4 h-4 md:w-5 md:h-5" />
-              Postavljanje brodova
-            </h3>
-            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setBoatPlacementMode(false)}>
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-
-          {selectedBoat ? (
-            <div className="bg-blue-50 dark:bg-blue-900/30 rounded-lg p-3 mb-4 border-2 border-blue-500">
-              <p className="text-sm font-semibold mb-3 text-blue-700 dark:text-blue-300">
-                Brod: {selectedBoat.vesselName || selectedBoat.berthCode}
-              </p>
-
-              {/* Berth selector */}
-              <div className="mb-3">
-                <Label className="text-xs mb-2 block">Trenutni vez: <b>{selectedBoat.berthCode}</b></Label>
-                <select
-                  value={selectedBoat.berthCode}
-                  onChange={(e) => {
-                    const newCode = e.target.value;
-                    setBoats((prev) => prev.map((b) =>
-                      b.id === selectedBoat.id ? { ...b, berthCode: newCode } : b
-                    ));
-                    setSelectedBoat({ ...selectedBoat, berthCode: newCode });
-                  }}
-                  className="w-full h-9 text-sm border rounded px-2 bg-white dark:bg-slate-800"
-                >
-                  <option value={selectedBoat.berthCode}>{selectedBoat.berthCode} (trenutni)</option>
-                  {uniqueBerths.filter(m => m.code !== selectedBoat.berthCode).map((marker) => (
-                    <option key={marker.id} value={marker.code}>{marker.code}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Size selector */}
-              <div className="mb-3">
-                <Label className="text-xs mb-2 block">Veličina</Label>
-                <div className="flex gap-1">
-                  {Object.values(BOAT_SIZES).map((size) => (
-                    <button
-                      key={size.id}
-                      onClick={() => {
-                        setBoats((prev) => prev.map((b) =>
-                          b.id === selectedBoat.id ? { ...b, size: size.id } : b
-                        ));
-                        setSelectedBoat({ ...selectedBoat, size: size.id });
-                      }}
-                      className={`flex-1 p-1.5 rounded border-2 ${selectedBoat.size === size.id ? 'border-blue-500' : 'border-gray-200'}`}
-                    >
-                      <img src={size.iconPath} alt={size.label} className="h-6 w-auto mx-auto" />
-                      <span className="text-[9px]">{size.label}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Rotation */}
-              <div className="mb-3">
-                <Label className="text-xs mb-2 block">Rotacija: {selectedBoat.rotation}°</Label>
-                <input
-                  type="range" min="0" max="359"
-                  value={selectedBoat.rotation}
-                  onChange={(e) => {
-                    const rot = Number(e.target.value);
-                    setBoats((prev) => prev.map((b) =>
-                      b.id === selectedBoat.id ? { ...b, rotation: rot } : b
-                    ));
-                    setSelectedBoat({ ...selectedBoat, rotation: rot });
-                  }}
-                  className="w-full"
-                />
-              </div>
-
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={() => handleRotateBoat(-15)} className="flex-1">-15°</Button>
-                <Button variant="outline" size="sm" onClick={() => handleRotateBoat(15)} className="flex-1">+15°</Button>
-                <Button variant="destructive" size="sm" onClick={handleDeleteBoat}><Trash2 className="w-4 h-4" /></Button>
-              </div>
-
-              <Button variant="ghost" size="sm" onClick={() => setSelectedBoat(null)} className="w-full mt-2 text-xs">
-                Gotovo
-              </Button>
-            </div>
-          ) : (
-            <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 mb-4 border border-dashed">
-              <p className="text-sm text-center text-muted-foreground">Kliknite na mapu da postavite brod</p>
-              {/* Berth selector for new boat */}
-              <div className="mt-3">
-                <Label className="text-xs mb-1 block">Vez za novi brod</Label>
-                <select
-                  value={newBoatBerthCode}
-                  onChange={(e) => setNewBoatBerthCode(e.target.value)}
-                  className="w-full h-8 text-sm border rounded px-2 bg-white dark:bg-slate-800"
-                >
-                  <option value="">-- Izaberi vez --</option>
-                  {uniqueBerths.map((marker) => (
-                    <option key={marker.id} value={marker.code}>{marker.code}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          )}
-
-          {/* Save button */}
-          <Button onClick={handleSaveBoats} className="w-full" disabled={isSaving}>
-            {isSaving ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-            Sačuvaj brodove ({boats.length})
-          </Button>
-        </Card>
-      )}
 
       {/* Berth Marker Mode Panel */}
       {berthMarkerMode && isManager && (
@@ -787,19 +454,18 @@ export default function MapPage() {
         </Card>
       )}
 
-      {selectedBerth && !boatPlacementMode && !berthMarkerMode && (
+      {selectedBerth && !berthMarkerMode && (
         <BerthPanel berth={selectedBerth} userRole={user.role} onClose={handleClosePanel} onSave={handleSaveOccupancy} />
       )}
 
-      {selectedBerthMarker && !boatPlacementMode && !berthMarkerMode && (
+      {selectedBerthMarker && !berthMarkerMode && (
         <BerthMarkerPanel marker={selectedBerthMarker} onClose={handleCloseBerthMarkerPanel} onNewBooking={handleNewBooking} />
       )}
 
       {/* Inspection Popup - when clicking on a berth marker */}
-      {inspectionBerth && !boatPlacementMode && !berthMarkerMode && (
+      {inspectionBerth && !berthMarkerMode && (
         <BerthInspectionPopup
           marker={inspectionBerth}
-          expectedBoat={getExpectedBoatForBerth(inspectionBerth.code)}
           onClose={() => setInspectionBerth(null)}
           onInspectionSaved={() => {
             // Optionally refresh data

@@ -20,31 +20,23 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   DialogFooter,
 } from '@/components/ui/dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Search, Plus, Ship, Anchor, Pencil, Loader2, Trash2 } from 'lucide-react';
+import { Search, Ship, Anchor, Pencil, Loader2, User, Calendar } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { hasPermission } from '@/lib/auth/rbac';
 import { getSupabaseClient } from '@/lib/supabase/client';
-import { BOAT_SIZES, BoatSize } from '@/types/boat.types';
-import { PhotoUpload } from '@/components/ui/photo-upload';
 
 interface Vessel {
   id: string;
   berth_code: string;
   vessel_name: string | null;
   vessel_registration: string | null;
-  vessel_image_url: string | null;
-  size: BoatSize;
-  created_at: string;
+  vessel_length: number | null;
+  guest_name: string;
+  check_in_date: string;
+  check_out_date: string;
+  status: string;
 }
 
 export default function VesselsPage() {
@@ -59,19 +51,23 @@ export default function VesselsPage() {
   // Edit form state
   const [editName, setEditName] = useState('');
   const [editRegistration, setEditRegistration] = useState('');
-  const [editSize, setEditSize] = useState<BoatSize>('m');
-  const [editImageUrl, setEditImageUrl] = useState('');
+  const [editLength, setEditLength] = useState('');
 
   const canEdit = user && hasPermission(user.role, 'EDIT_VESSELS');
 
-  // Load vessels from boat_placements
+  // Load vessels from active berth_bookings
   useEffect(() => {
     const loadVessels = async () => {
       try {
         const supabase = getSupabaseClient();
+        const today = new Date().toISOString().split('T')[0];
+
         const { data, error } = await supabase
-          .from('boat_placements')
-          .select('id, berth_code, vessel_name, vessel_registration, vessel_image_url, size, created_at')
+          .from('berth_bookings')
+          .select('id, berth_code, vessel_name, vessel_registration, vessel_length, guest_name, check_in_date, check_out_date, status')
+          .in('status', ['confirmed', 'checked_in', 'pending'])
+          .lte('check_in_date', today)
+          .gte('check_out_date', today)
           .order('berth_code', { ascending: true });
 
         if (error) {
@@ -96,15 +92,15 @@ export default function VesselsPage() {
     (vessel) =>
       vessel.vessel_registration?.toLowerCase().includes(search.toLowerCase()) ||
       vessel.vessel_name?.toLowerCase().includes(search.toLowerCase()) ||
-      vessel.berth_code.toLowerCase().includes(search.toLowerCase())
+      vessel.berth_code.toLowerCase().includes(search.toLowerCase()) ||
+      vessel.guest_name.toLowerCase().includes(search.toLowerCase())
   );
 
   const handleEditClick = (vessel: Vessel) => {
     setEditingVessel(vessel);
     setEditName(vessel.vessel_name || '');
     setEditRegistration(vessel.vessel_registration || '');
-    setEditSize(vessel.size);
-    setEditImageUrl(vessel.vessel_image_url || '');
+    setEditLength(vessel.vessel_length?.toString() || '');
     setIsEditDialogOpen(true);
   };
 
@@ -116,12 +112,11 @@ export default function VesselsPage() {
       const supabase = getSupabaseClient();
 
       const { error } = await supabase
-        .from('boat_placements')
+        .from('berth_bookings')
         .update({
           vessel_name: editName.trim() || null,
           vessel_registration: editRegistration.trim() || null,
-          size: editSize,
-          vessel_image_url: editImageUrl || null,
+          vessel_length: editLength ? parseFloat(editLength) : null,
         })
         .eq('id', editingVessel.id);
 
@@ -137,8 +132,7 @@ export default function VesselsPage() {
               ...v,
               vessel_name: editName.trim() || null,
               vessel_registration: editRegistration.trim() || null,
-              size: editSize,
-              vessel_image_url: editImageUrl || null,
+              vessel_length: editLength ? parseFloat(editLength) : null,
             }
           : v
       ));
@@ -152,33 +146,16 @@ export default function VesselsPage() {
     }
   };
 
-  const handleDeleteVessel = async () => {
-    if (!editingVessel) return;
-    if (!confirm('Da li ste sigurni da zelite obrisati ovo plovilo?')) return;
-
-    setIsSaving(true);
-    try {
-      const supabase = getSupabaseClient();
-
-      const { error } = await supabase
-        .from('boat_placements')
-        .delete()
-        .eq('id', editingVessel.id);
-
-      if (error) {
-        alert('Greska: ' + error.message);
-        return;
-      }
-
-      // Update local state
-      setVessels(prev => prev.filter(v => v.id !== editingVessel.id));
-
-      setIsEditDialogOpen(false);
-      setEditingVessel(null);
-    } catch (err) {
-      alert('Greska: ' + (err as Error).message);
-    } finally {
-      setIsSaving(false);
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'checked_in':
+        return <Badge className="bg-green-500">Prijavljen</Badge>;
+      case 'confirmed':
+        return <Badge className="bg-blue-500">Potvrden</Badge>;
+      case 'pending':
+        return <Badge className="bg-yellow-500">Na cekanju</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
     }
   };
 
@@ -188,7 +165,7 @@ export default function VesselsPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Plovila</h1>
           <p className="text-muted-foreground">
-            Evidencija svih plovila u marini
+            Aktivna plovila u marini (iz rezervacija)
           </p>
         </div>
       </div>
@@ -199,7 +176,7 @@ export default function VesselsPage() {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Pretrazi po registraciji, imenu ili vezu..."
+              placeholder="Pretrazi po registraciji, imenu, vezu ili gostu..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-9"
@@ -224,71 +201,65 @@ export default function VesselsPage() {
           ) : vessels.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <Ship className="h-10 w-10 mx-auto mb-2 opacity-50" />
-              <p>Nema plovila u evidenciji</p>
-              <p className="text-sm">Dodaj brodove na mapi</p>
+              <p>Nema aktivnih plovila</p>
+              <p className="text-sm">Plovila se prikazuju iz aktivnih rezervacija</p>
             </div>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Vez</TableHead>
-                  <TableHead>Ime plovila</TableHead>
+                  <TableHead>Plovilo</TableHead>
                   <TableHead>Registracija</TableHead>
-                  <TableHead>Velicina</TableHead>
-                  <TableHead>Slika</TableHead>
+                  <TableHead>Duzina</TableHead>
+                  <TableHead>Gost</TableHead>
+                  <TableHead>Status</TableHead>
                   {canEdit && <TableHead className="text-right">Akcije</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredVessels.map((vessel) => {
-                  const sizeInfo = BOAT_SIZES[vessel.size];
-                  return (
-                    <TableRow key={vessel.id}>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Anchor className="h-4 w-4 text-blue-500" />
-                          <span className="font-semibold">{vessel.berth_code}</span>
-                        </div>
+                {filteredVessels.map((vessel) => (
+                  <TableRow key={vessel.id}>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Anchor className="h-4 w-4 text-blue-500" />
+                        <span className="font-semibold">{vessel.berth_code}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Ship className="h-4 w-4 text-muted-foreground" />
+                        {vessel.vessel_name || <span className="text-muted-foreground">-</span>}
+                      </div>
+                    </TableCell>
+                    <TableCell className="font-mono">
+                      {vessel.vessel_registration || <span className="text-muted-foreground">-</span>}
+                    </TableCell>
+                    <TableCell>
+                      {vessel.vessel_length ? `${vessel.vessel_length}m` : <span className="text-muted-foreground">-</span>}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <User className="h-4 w-4 text-muted-foreground" />
+                        {vessel.guest_name}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {getStatusBadge(vessel.status)}
+                    </TableCell>
+                    {canEdit && (
+                      <TableCell className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleEditClick(vessel)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
                       </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Ship className="h-4 w-4 text-muted-foreground" />
-                          {vessel.vessel_name || <span className="text-muted-foreground">-</span>}
-                        </div>
-                      </TableCell>
-                      <TableCell className="font-mono">
-                        {vessel.vessel_registration || <span className="text-muted-foreground">-</span>}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">
-                          {sizeInfo.label} ({sizeInfo.lengthRange})
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {vessel.vessel_image_url ? (
-                          <img
-                            src={vessel.vessel_image_url}
-                            alt={vessel.vessel_name || 'Plovilo'}
-                            className="w-12 h-12 object-cover rounded"
-                          />
-                        ) : (
-                          <span className="text-muted-foreground text-sm">Nema</span>
-                        )}
-                      </TableCell>
-                      {canEdit && (
-                        <TableCell className="text-right">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleEditClick(vessel)}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
-                      )}
-                    </TableRow>
-                  );
-                })}
+                    )}
+                  </TableRow>
+                ))}
               </TableBody>
             </Table>
           )}
@@ -302,6 +273,8 @@ export default function VesselsPage() {
             <DialogTitle>Uredi plovilo</DialogTitle>
             <DialogDescription>
               Vez: <span className="font-semibold">{editingVessel?.berth_code}</span>
+              {' | '}
+              Gost: <span className="font-semibold">{editingVessel?.guest_name}</span>
             </DialogDescription>
           </DialogHeader>
 
@@ -326,53 +299,27 @@ export default function VesselsPage() {
             </div>
 
             <div className="space-y-2">
-              <Label>Velicina</Label>
-              <Select value={editSize} onValueChange={(v) => setEditSize(v as BoatSize)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(BOAT_SIZES).map(([key, info]) => (
-                    <SelectItem key={key} value={key}>
-                      {info.label} - {info.description} ({info.lengthRange})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Fotografija plovila</Label>
-              <PhotoUpload
-                currentPhotoUrl={editImageUrl}
-                onPhotoUploaded={setEditImageUrl}
-                onPhotoRemoved={() => setEditImageUrl('')}
-                bucketName="vessel-photos"
-                folderPath="boats"
+              <Label>Duzina (m)</Label>
+              <Input
+                type="number"
+                step="0.1"
+                value={editLength}
+                onChange={(e) => setEditLength(e.target.value)}
+                placeholder="npr. 12.5"
               />
             </div>
           </div>
 
-          <DialogFooter className="flex justify-between">
-            <Button
-              variant="destructive"
-              onClick={handleDeleteVessel}
-              disabled={isSaving}
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Obrisi
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+              Odustani
             </Button>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
-                Odustani
-              </Button>
-              <Button onClick={handleSaveEdit} disabled={isSaving}>
-                {isSaving ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                ) : null}
-                Sacuvaj
-              </Button>
-            </div>
+            <Button onClick={handleSaveEdit} disabled={isSaving}>
+              {isSaving ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : null}
+              Sacuvaj
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

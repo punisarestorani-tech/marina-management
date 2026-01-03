@@ -28,7 +28,7 @@ import {
   Calendar,
   User,
 } from 'lucide-react';
-import { BerthMarker, BoatPlacement, BOAT_SIZES } from '@/types/boat.types';
+import { BerthMarker } from '@/types/boat.types';
 import {
   InspectionStatus,
   INSPECTION_STATUS_LABELS,
@@ -51,7 +51,6 @@ interface ReservationData {
 
 interface BerthInspectionPopupProps {
   marker: BerthMarker;
-  expectedBoat?: BoatPlacement | null;
   onClose: () => void;
   onInspectionSaved?: () => void;
   inspectorId?: string;
@@ -60,7 +59,6 @@ interface BerthInspectionPopupProps {
 
 export function BerthInspectionPopup({
   marker,
-  expectedBoat,
   onClose,
   onInspectionSaved,
   inspectorId,
@@ -111,10 +109,8 @@ export function BerthInspectionPopup({
     loadReservation();
   }, [marker.code]);
 
-  const sizeInfo = expectedBoat ? BOAT_SIZES[expectedBoat.size] : null;
-
-  // Determine if we have expected vessel info (from boat placement OR reservation)
-  const hasExpectedVessel = expectedBoat || reservation;
+  // Determine if we have expected vessel info from reservation
+  const hasExpectedVessel = !!reservation;
 
   const handleSaveInspection = async () => {
     if (!status) {
@@ -134,9 +130,9 @@ export function BerthInspectionPopup({
     try {
       const supabase = getSupabaseClient();
 
-      // Use reservation data if available, otherwise use boat placement data
-      const expectedName = reservation?.vessel_name || expectedBoat?.vesselName || null;
-      const expectedReg = reservation?.vessel_registration || expectedBoat?.vesselRegistration || null;
+      // Use reservation data for expected vessel
+      const expectedName = reservation?.vessel_name || null;
+      const expectedReg = reservation?.vessel_registration || null;
 
       const { error } = await supabase.from('inspections').insert({
         berth_code: marker.code,
@@ -237,32 +233,6 @@ export function BerthInspectionPopup({
           {isLoadingReservation ? (
             <div className="p-4 text-center">
               <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
-            </div>
-          ) : expectedBoat ? (
-            <div className="p-3 space-y-2">
-              {expectedBoat.vesselImageUrl && (
-                <img
-                  src={expectedBoat.vesselImageUrl}
-                  alt={expectedBoat.vesselName || 'Plovilo'}
-                  className="w-full h-32 object-cover rounded-lg"
-                />
-              )}
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <div>
-                  <p className="text-xs text-muted-foreground">Ime</p>
-                  <p className="font-semibold">{expectedBoat.vesselName || '-'}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Registracija</p>
-                  <p className="font-semibold">{expectedBoat.vesselRegistration || '-'}</p>
-                </div>
-                {sizeInfo && (
-                  <div className="col-span-2">
-                    <p className="text-xs text-muted-foreground">Velicina</p>
-                    <p className="font-semibold">{sizeInfo.label} ({sizeInfo.lengthRange})</p>
-                  </div>
-                )}
-              </div>
             </div>
           ) : reservation ? (
             <div className="p-3 space-y-2">
