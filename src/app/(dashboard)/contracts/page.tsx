@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -21,12 +21,37 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Search, Plus, FileText, Calendar, Euro } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Search, Plus, FileText, Calendar, Euro, Upload, Download, Loader2, CheckCircle, File } from 'lucide-react';
 import { format } from 'date-fns';
 import { hr } from 'date-fns/locale';
+import { getSupabaseClient } from '@/lib/supabase/client';
 
-// Mock data
-const CONTRACTS = [
+// Contract interface
+interface Contract {
+  id: string;
+  berth: string;
+  vessel: string;
+  vesselName: string;
+  owner: string;
+  startDate: Date;
+  endDate: Date;
+  annualPrice: number;
+  paymentSchedule: string;
+  status: string;
+  paidAmount: number;
+  totalDue: number;
+  documentUrl?: string;
+}
+
+// Initial mock data
+const INITIAL_CONTRACTS: Contract[] = [
   {
     id: 'contract001',
     berth: 'A-01',
@@ -109,8 +134,14 @@ const PAYMENT_SCHEDULE_LABELS: Record<string, string> = {
 export default function ContractsPage() {
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [contracts, setContracts] = useState<Contract[]>(INITIAL_CONTRACTS);
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [selectedContract, setSelectedContract] = useState<Contract | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadSuccess, setUploadSuccess] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const filteredContracts = CONTRACTS.filter((contract) => {
+  const filteredContracts = contracts.filter((contract) => {
     const matchesSearch =
       contract.berth.toLowerCase().includes(search.toLowerCase()) ||
       contract.vessel.toLowerCase().includes(search.toLowerCase()) ||
@@ -134,8 +165,57 @@ export default function ContractsPage() {
     }
   };
 
-  const totalRevenue = CONTRACTS.reduce((sum, c) => sum + c.annualPrice, 0);
-  const totalPaid = CONTRACTS.reduce((sum, c) => sum + c.paidAmount, 0);
+  const totalRevenue = contracts.reduce((sum, c) => sum + c.annualPrice, 0);
+  const totalPaid = contracts.reduce((sum, c) => sum + c.paidAmount, 0);
+
+  const handleOpenUploadDialog = (contract: Contract) => {
+    setSelectedContract(contract);
+    setUploadSuccess(false);
+    setUploadDialogOpen(true);
+  };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !selectedContract) return;
+
+    setUploading(true);
+    try {
+      const supabase = getSupabaseClient();
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${selectedContract.id}_${Date.now()}.${fileExt}`;
+      const filePath = `contracts/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('contract-documents')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('contract-documents')
+        .getPublicUrl(filePath);
+
+      setContracts(prev => prev.map(c =>
+        c.id === selectedContract.id
+          ? { ...c, documentUrl: publicUrl }
+          : c
+      ));
+
+      setUploadSuccess(true);
+      setTimeout(() => {
+        setUploadDialogOpen(false);
+        setUploadSuccess(false);
+      }, 1500);
+    } catch (error) {
+      console.error('Error uploading document:', error);
+      alert('Greška pri uploadu dokumenta');
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -161,7 +241,7 @@ export default function ContractsPage() {
             <CardTitle className="text-sm font-medium">Ukupno ugovora</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{CONTRACTS.length}</div>
+            <div className="text-2xl font-bold">{contracts.length}</div>
             <p className="text-xs text-muted-foreground">aktivnih ugovora</p>
           </CardContent>
         </Card>
@@ -226,7 +306,7 @@ export default function ContractsPage() {
         <CardHeader>
           <CardTitle>Lista ugovora</CardTitle>
           <CardDescription>
-            Prikazano {filteredContracts.length} od {CONTRACTS.length} ugovora
+            Prikazano {filteredContracts.length} od {contracts.length} ugovora
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -288,11 +368,34 @@ export default function ContractsPage() {
                   </TableCell>
                   <TableCell>{getStatusBadge(contract.status)}</TableCell>
                   <TableCell className="text-right">
-                    <Button variant="ghost" size="sm" asChild>
-                      <Link href={`/contracts/${contract.id}`}>
-                        <FileText className="h-4 w-4" />
-                      </Link>
-                    </Button>
+                    <div className="flex items-center justify-end gap-1">
+                      {contract.documentUrl ? (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          asChild
+                          title="Preuzmi dokument"
+                        >
+                          <a href={contract.documentUrl} target="_blank" rel="noopener noreferrer">
+                            <Download className="h-4 w-4 text-green-600" />
+                          </a>
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleOpenUploadDialog(contract)}
+                          title="Učitaj dokument"
+                        >
+                          <Upload className="h-4 w-4" />
+                        </Button>
+                      )}
+                      <Button variant="ghost" size="sm" asChild>
+                        <Link href={`/contracts/${contract.id}`}>
+                          <FileText className="h-4 w-4" />
+                        </Link>
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -300,6 +403,61 @@ export default function ContractsPage() {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Upload Dialog */}
+      <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Učitaj dokument ugovora</DialogTitle>
+            <DialogDescription>
+              {selectedContract && (
+                <>Ugovor za vez {selectedContract.berth} - {selectedContract.owner}</>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {uploadSuccess ? (
+              <div className="flex flex-col items-center justify-center py-8 text-green-600">
+                <CheckCircle className="h-12 w-12 mb-2" />
+                <p className="font-medium">Dokument uspješno učitan!</p>
+              </div>
+            ) : (
+              <>
+                <div className="flex flex-col items-center justify-center border-2 border-dashed border-muted-foreground/25 rounded-lg p-8">
+                  <File className="h-10 w-10 text-muted-foreground mb-4" />
+                  <p className="text-sm text-muted-foreground mb-4">
+                    PDF, DOC, DOCX ili slike (max 10MB)
+                  </p>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                    onChange={handleFileUpload}
+                    className="hidden"
+                    id="contract-file-input"
+                  />
+                  <Button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading}
+                  >
+                    {uploading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Učitavam...
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="mr-2 h-4 w-4" />
+                        Odaberi datoteku
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
