@@ -333,12 +333,18 @@ export function BookingCalendar({
   );
 }
 
-// Timeline view for multiple berths
+// Month names for display
+const MONTH_NAMES = [
+  'Januar', 'Februar', 'Mart', 'April', 'Maj', 'Juni',
+  'Juli', 'August', 'Septembar', 'Oktobar', 'Novembar', 'Decembar'
+];
+
+// Timeline view for multiple berths - Month based
 interface BookingTimelineProps {
   berths: { id: string; code: string }[];
   bookings: Booking[];
-  startDate: string;
-  days: number;
+  currentMonth: Date;
+  onMonthChange: (date: Date) => void;
   onBookingClick?: (booking: Booking) => void;
   onCellClick?: (berthId: string, berthCode: string, date: string) => void;
 }
@@ -346,22 +352,24 @@ interface BookingTimelineProps {
 export function BookingTimeline({
   berths,
   bookings,
-  startDate,
-  days,
+  currentMonth,
+  onMonthChange,
   onBookingClick,
   onCellClick,
 }: BookingTimelineProps) {
-  // Generate date headers
+  const year = currentMonth.getFullYear();
+  const month = currentMonth.getMonth();
+  const daysInMonth = getDaysInMonth(year, month);
+
+  // Generate date headers for the month
   const dates = useMemo(() => {
     const result: string[] = [];
-    const start = new Date(startDate);
-    for (let i = 0; i < days; i++) {
-      const date = new Date(start);
-      date.setDate(start.getDate() + i);
+    for (let day = 1; day <= daysInMonth; day++) {
+      const date = new Date(year, month, day);
       result.push(formatDateISO(date));
     }
     return result;
-  }, [startDate, days]);
+  }, [year, month, daysInMonth]);
 
   const today = formatDateISO(new Date());
 
@@ -377,88 +385,155 @@ export function BookingTimeline({
     );
   };
 
-  return (
-    <div className="overflow-x-auto">
-      <div className="min-w-max">
-        {/* Header row with dates */}
-        <div className="flex border-b">
-          <div className="w-20 shrink-0 p-2 font-medium text-sm bg-gray-50 dark:bg-gray-800">
-            Vez
-          </div>
-          {dates.map((date) => {
-            const d = new Date(date);
-            const isToday = date === today;
-            const isWeekend = d.getDay() === 0 || d.getDay() === 6;
-            return (
-              <div
-                key={date}
-                className={`
-                  w-10 shrink-0 p-1 text-center text-xs border-l
-                  ${isToday ? 'bg-blue-100 dark:bg-blue-900' : ''}
-                  ${isWeekend ? 'bg-gray-50 dark:bg-gray-800' : ''}
-                `}
-              >
-                <div className="font-medium">{d.getDate()}</div>
-                <div className="text-muted-foreground">
-                  {['N', 'P', 'U', 'S', 'Č', 'P', 'S'][d.getDay()]}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+  // Navigate months
+  const goToPrevMonth = () => {
+    onMonthChange(new Date(year, month - 1, 1));
+  };
 
-        {/* Berth rows */}
-        {berths.map((berth) => (
-          <div key={berth.id} className="flex border-b">
-            <div className="w-20 shrink-0 p-2 font-medium text-sm bg-gray-50 dark:bg-gray-800">
-              {berth.code}
+  const goToNextMonth = () => {
+    onMonthChange(new Date(year, month + 1, 1));
+  };
+
+  const goToToday = () => {
+    onMonthChange(new Date());
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Month navigation */}
+      <div className="flex items-center justify-between">
+        <h3 className="font-semibold text-lg">
+          {MONTH_NAMES[month]} {year}
+        </h3>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={goToToday}>
+            Danas
+          </Button>
+          <Button variant="outline" size="icon" onClick={goToPrevMonth}>
+            <ChevronLeft className="w-4 h-4" />
+          </Button>
+          <Button variant="outline" size="icon" onClick={goToNextMonth}>
+            <ChevronRight className="w-4 h-4" />
+          </Button>
+        </div>
+      </div>
+
+      {/* Timeline grid */}
+      <div className="overflow-x-auto border rounded-lg">
+        <div className="min-w-max">
+          {/* Header row with dates */}
+          <div className="flex border-b sticky top-0 bg-background z-10">
+            <div className="w-24 shrink-0 p-2 font-medium text-sm bg-gray-50 dark:bg-gray-800 border-r sticky left-0 z-20">
+              Vez
             </div>
             {dates.map((date) => {
-              const booking = getBooking(berth.id, date);
+              const d = new Date(date);
               const isToday = date === today;
-              const isCheckIn = booking?.checkInDate === date;
-              const isCheckOut = booking?.checkOutDate === date;
+              const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+              const dayNum = d.getDate();
+              const isFirstOfMonth = dayNum === 1;
 
               return (
                 <div
                   key={date}
-                  onClick={() => {
-                    if (booking && onBookingClick) {
-                      onBookingClick(booking);
-                    } else if (onCellClick) {
-                      onCellClick(berth.id, berth.code, date);
-                    }
-                  }}
                   className={`
-                    w-10 shrink-0 h-10 border-l cursor-pointer
-                    ${isToday ? 'ring-1 ring-blue-500 ring-inset' : ''}
-                    ${!booking ? 'hover:bg-gray-100 dark:hover:bg-gray-700' : ''}
+                    w-11 shrink-0 p-1 text-center text-xs border-l
+                    ${isToday ? 'bg-blue-100 dark:bg-blue-900 font-bold' : ''}
+                    ${isWeekend && !isToday ? 'bg-gray-100 dark:bg-gray-800' : ''}
+                    ${isFirstOfMonth ? 'border-l-2 border-l-blue-400' : ''}
                   `}
-                  style={
-                    booking
-                      ? {
-                          backgroundColor: BOOKING_STATUS_COLORS[booking.status].bg,
-                        }
-                      : undefined
-                  }
-                  title={
-                    booking
-                      ? `${booking.guestName} - ${booking.vesselName || 'N/A'}`
-                      : 'Slobodno'
-                  }
                 >
-                  {isCheckIn && (
-                    <div className="h-full flex items-center justify-center">
-                      <span className="text-[8px] bg-green-500 text-white px-0.5 rounded">
-                        IN
-                      </span>
-                    </div>
-                  )}
+                  <div className={`font-medium ${isToday ? 'text-blue-600' : ''}`}>
+                    {dayNum}
+                  </div>
+                  <div className={`text-muted-foreground ${isToday ? 'text-blue-500' : ''}`}>
+                    {['N', 'P', 'U', 'S', 'Č', 'P', 'S'][d.getDay()]}
+                  </div>
                 </div>
               );
             })}
           </div>
-        ))}
+
+          {/* Berth rows */}
+          {berths.map((berth) => (
+            <div key={berth.id} className="flex border-b hover:bg-gray-50/50 dark:hover:bg-gray-800/50">
+              <div className="w-24 shrink-0 p-2 font-medium text-sm bg-gray-50 dark:bg-gray-800 border-r sticky left-0 z-10">
+                {berth.code}
+              </div>
+              {dates.map((date) => {
+                const booking = getBooking(berth.id, date);
+                const isToday = date === today;
+                const isCheckIn = booking?.checkInDate === date;
+                const d = new Date(date);
+                const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+
+                return (
+                  <div
+                    key={date}
+                    onClick={() => {
+                      if (booking && onBookingClick) {
+                        onBookingClick(booking);
+                      } else if (onCellClick) {
+                        onCellClick(berth.id, berth.code, date);
+                      }
+                    }}
+                    className={`
+                      w-11 shrink-0 h-11 border-l cursor-pointer transition-colors relative
+                      ${isToday ? 'ring-2 ring-blue-500 ring-inset z-[5]' : ''}
+                      ${!booking && isWeekend ? 'bg-gray-50 dark:bg-gray-800/50' : ''}
+                      ${!booking ? 'hover:bg-blue-50 dark:hover:bg-blue-900/30' : ''}
+                    `}
+                    style={
+                      booking
+                        ? {
+                            backgroundColor: BOOKING_STATUS_COLORS[booking.status].bg,
+                          }
+                        : undefined
+                    }
+                    title={
+                      booking
+                        ? `${booking.guestName} - ${booking.vesselName || 'N/A'}\n${booking.checkInDate} - ${booking.checkOutDate}`
+                        : `Slobodno - ${date}`
+                    }
+                  >
+                    {isCheckIn && (
+                      <div className="h-full flex items-center justify-center">
+                        <span
+                          className="text-[9px] font-bold px-1 py-0.5 rounded"
+                          style={{
+                            backgroundColor: BOOKING_STATUS_COLORS[booking!.status].text,
+                            color: 'white'
+                          }}
+                        >
+                          IN
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Legend */}
+      <div className="flex flex-wrap gap-4 pt-2">
+        {Object.entries(BOOKING_STATUS_COLORS)
+          .filter(([status]) => ['pending', 'confirmed', 'checked_in'].includes(status))
+          .map(([status, colors]) => (
+            <div key={status} className="flex items-center gap-2">
+              <div
+                className="w-4 h-4 rounded"
+                style={{ backgroundColor: colors.bg, border: `2px solid ${colors.text}` }}
+              />
+              <span className="text-sm text-muted-foreground">{colors.label}</span>
+            </div>
+          ))}
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 rounded ring-2 ring-blue-500" />
+          <span className="text-sm text-muted-foreground">Danas</span>
+        </div>
       </div>
     </div>
   );

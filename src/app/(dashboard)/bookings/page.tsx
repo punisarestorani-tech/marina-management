@@ -134,12 +134,8 @@ export default function BookingsPage() {
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [showDetails, setShowDetails] = useState(false);
 
-  // Timeline navigation
-  const [timelineStart, setTimelineStart] = useState(() => {
-    const today = new Date();
-    today.setDate(today.getDate() - 2);
-    return today.toISOString().split('T')[0];
-  });
+  // Calendar month navigation
+  const [calendarMonth, setCalendarMonth] = useState(() => new Date());
 
   // Load berths and bookings from database
   useEffect(() => {
@@ -896,42 +892,12 @@ export default function BookingsPage() {
         {/* Calendar Tab */}
         <TabsContent value="calendar" className="mt-4">
           <Card className="p-4">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold">Pregled po vezovima</h3>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => {
-                    const d = new Date(timelineStart);
-                    d.setDate(d.getDate() - 7);
-                    setTimelineStart(d.toISOString().split('T')[0]);
-                  }}
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </Button>
-                <span className="text-sm min-w-[100px] text-center">
-                  {formatDate(timelineStart)}
-                </span>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => {
-                    const d = new Date(timelineStart);
-                    d.setDate(d.getDate() + 7);
-                    setTimelineStart(d.toISOString().split('T')[0]);
-                  }}
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
             {transitBerths.length > 0 ? (
               <BookingTimeline
                 berths={transitBerths}
                 bookings={bookings.filter(b => !['cancelled', 'no_show'].includes(b.status))}
-                startDate={timelineStart}
-                days={21}
+                currentMonth={calendarMonth}
+                onMonthChange={setCalendarMonth}
                 onBookingClick={handleBookingClick}
                 onCellClick={(berthId, berthCode, date) => {
                   const nextDay = new Date(date);
