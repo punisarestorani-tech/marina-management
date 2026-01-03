@@ -59,6 +59,15 @@ export default function MapPage() {
     });
   }, [berthMarkers]);
 
+  // Get A-01 berth position as map center
+  const mapCenter = useMemo(() => {
+    const a01 = berthMarkers.find(m => m.code === 'A-01');
+    if (a01) {
+      return { lat: a01.position.lat, lng: a01.position.lng };
+    }
+    return undefined;
+  }, [berthMarkers]);
+
   // Load berths and reservations to determine berth statuses
   useEffect(() => {
     const loadData = async () => {
@@ -380,6 +389,7 @@ export default function MapPage() {
           berthMarkerMode={berthMarkerMode}
           onMapClick={handleMapClick}
           onBerthMarkerDragEnd={handleBerthMarkerDragEnd}
+          initialCenter={mapCenter}
         />
       </div>
 

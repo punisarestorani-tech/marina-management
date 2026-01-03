@@ -70,6 +70,7 @@ interface MarinaMapProps {
   berthMarkerMode?: boolean;
   onBerthMarkerDragEnd?: (marker: BerthMarker, newPosition: { lat: number; lng: number }) => void;
   showUserLocation?: boolean;
+  initialCenter?: { lat: number; lng: number };
 }
 
 // User location state
@@ -262,13 +263,16 @@ function MapEventHandler({
   return null;
 }
 
-// Component to handle map centering - fixed center
-function MapController() {
+// Component to handle map centering
+function MapController({ initialCenter }: { initialCenter?: { lat: number; lng: number } }) {
   const map = useMap();
 
   useEffect(() => {
-    map.setView(MARINA_CENTER, DEFAULT_ZOOM);
-  }, [map]);
+    const center = initialCenter
+      ? [initialCenter.lat, initialCenter.lng] as LatLngExpression
+      : MARINA_CENTER;
+    map.setView(center, DEFAULT_ZOOM);
+  }, [map, initialCenter]);
 
   return null;
 }
@@ -331,6 +335,7 @@ export function MarinaMap({
   berthMarkerMode = false,
   onBerthMarkerDragEnd,
   showUserLocation = true,
+  initialCenter,
 }: MarinaMapProps) {
   const [isClient, setIsClient] = useState(false);
   const [currentZoom, setCurrentZoom] = useState(DEFAULT_ZOOM);
@@ -382,7 +387,7 @@ export function MarinaMap({
       zoomControl={true}
       attributionControl={false}
     >
-      <MapController />
+      <MapController initialCenter={initialCenter} />
       <MapEventHandler onMapClick={onMapClick} berthMarkerMode={berthMarkerMode} onZoomChange={handleZoomChange} />
 
       {/* User location */}
