@@ -44,6 +44,7 @@ interface ReservationData {
   vessel_name: string | null;
   vessel_registration: string | null;
   vessel_length: number | null;
+  vessel_image_url: string | null;
   check_in_date: string;
   check_out_date: string;
   status: string;
@@ -87,7 +88,7 @@ export function BerthInspectionPopup({
 
         const { data } = await supabase
           .from('berth_bookings')
-          .select('id, guest_name, guest_phone, vessel_name, vessel_registration, vessel_length, check_in_date, check_out_date, status')
+          .select('id, guest_name, guest_phone, vessel_name, vessel_registration, vessel_length, vessel_image_url, check_in_date, check_out_date, status')
           .eq('berth_code', marker.code)
           .lte('check_in_date', today)
           .gte('check_out_date', today)
@@ -235,43 +236,80 @@ export function BerthInspectionPopup({
               <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
             </div>
           ) : reservation ? (
-            <div className="p-3 space-y-2">
-              <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-2 border border-yellow-200 dark:border-yellow-800">
-                <div className="flex items-center gap-2 text-yellow-700 dark:text-yellow-300">
-                  <Calendar className="h-4 w-4" />
-                  <span className="text-xs font-medium">REZERVACIJA</span>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <div className="col-span-2">
-                  <p className="text-xs text-muted-foreground flex items-center gap-1">
-                    <User className="h-3 w-3" />
-                    Gost
-                  </p>
-                  <p className="font-semibold">{reservation.guest_name}</p>
-                  {reservation.guest_phone && (
-                    <p className="text-xs text-muted-foreground">{reservation.guest_phone}</p>
-                  )}
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Ime broda</p>
-                  <p className="font-semibold">{reservation.vessel_name || '-'}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Registracija</p>
-                  <p className="font-semibold">{reservation.vessel_registration || '-'}</p>
-                </div>
-                {reservation.vessel_length && (
-                  <div>
-                    <p className="text-xs text-muted-foreground">Duzina</p>
-                    <p className="font-semibold">{reservation.vessel_length}m</p>
+            <div className="space-y-0">
+              {/* Vessel Image */}
+              {reservation.vessel_image_url && (
+                <div className="relative">
+                  <img
+                    src={reservation.vessel_image_url}
+                    alt={reservation.vessel_name || 'Plovilo'}
+                    className="w-full h-40 object-cover"
+                  />
+                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2">
+                    <p className="text-white font-semibold text-sm">
+                      {reservation.vessel_name || 'Nepoznato plovilo'}
+                    </p>
+                    {reservation.vessel_registration && (
+                      <p className="text-white/80 text-xs font-mono">
+                        {reservation.vessel_registration}
+                      </p>
+                    )}
                   </div>
-                )}
-                <div className="col-span-2">
-                  <p className="text-xs text-muted-foreground">Period</p>
-                  <p className="font-semibold">
-                    {new Date(reservation.check_in_date).toLocaleDateString('hr-HR')} - {new Date(reservation.check_out_date).toLocaleDateString('hr-HR')}
-                  </p>
+                </div>
+              )}
+
+              <div className="p-3 space-y-2">
+                <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-2 border border-yellow-200 dark:border-yellow-800">
+                  <div className="flex items-center gap-2 text-yellow-700 dark:text-yellow-300">
+                    <Calendar className="h-4 w-4" />
+                    <span className="text-xs font-medium">REZERVACIJA</span>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div className="col-span-2">
+                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                      <User className="h-3 w-3" />
+                      Gost
+                    </p>
+                    <p className="font-semibold">{reservation.guest_name}</p>
+                    {reservation.guest_phone && (
+                      <p className="text-xs text-muted-foreground">{reservation.guest_phone}</p>
+                    )}
+                  </div>
+                  {!reservation.vessel_image_url && (
+                    <>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Ime broda</p>
+                        <p className="font-semibold">{reservation.vessel_name || '-'}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Registracija</p>
+                        <p className="font-semibold">{reservation.vessel_registration || '-'}</p>
+                      </div>
+                    </>
+                  )}
+                  {reservation.vessel_image_url && (
+                    <div className="col-span-2 flex gap-4">
+                      {reservation.vessel_length && (
+                        <div>
+                          <p className="text-xs text-muted-foreground">Duzina</p>
+                          <p className="font-semibold">{reservation.vessel_length}m</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {!reservation.vessel_image_url && reservation.vessel_length && (
+                    <div>
+                      <p className="text-xs text-muted-foreground">Duzina</p>
+                      <p className="font-semibold">{reservation.vessel_length}m</p>
+                    </div>
+                  )}
+                  <div className="col-span-2">
+                    <p className="text-xs text-muted-foreground">Period</p>
+                    <p className="font-semibold">
+                      {new Date(reservation.check_in_date).toLocaleDateString('hr-HR')} - {new Date(reservation.check_out_date).toLocaleDateString('hr-HR')}
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
