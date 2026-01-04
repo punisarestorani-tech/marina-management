@@ -430,7 +430,7 @@ export default function MapPage() {
             <div>
               <Label className="text-xs mb-1 block">Ponton</Label>
               <div className="flex gap-1">
-                {['A', 'B', 'C', 'D', 'E'].map((p) => (
+                {['A', 'B', 'C', 'D', 'E', 'F'].map((p) => (
                   <button
                     key={p}
                     onClick={() => {
