@@ -263,15 +263,19 @@ function MapEventHandler({
   return null;
 }
 
-// Component to handle map centering
+// Component to handle map centering - only on initial load
 function MapController({ initialCenter }: { initialCenter?: { lat: number; lng: number } }) {
   const map = useMap();
+  const hasInitialized = useRef(false);
 
   useEffect(() => {
-    const center = initialCenter
-      ? [initialCenter.lat, initialCenter.lng] as LatLngExpression
-      : MARINA_CENTER;
-    map.setView(center, DEFAULT_ZOOM);
+    // Only set view once on initial load
+    if (hasInitialized.current) return;
+
+    if (initialCenter) {
+      map.setView([initialCenter.lat, initialCenter.lng], DEFAULT_ZOOM);
+      hasInitialized.current = true;
+    }
   }, [map, initialCenter]);
 
   return null;
