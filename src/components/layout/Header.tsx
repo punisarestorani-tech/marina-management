@@ -14,29 +14,11 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { MobileNav } from './MobileNav';
-import { Bell, Wifi, WifiOff, LogOut, User, Monitor, Smartphone } from 'lucide-react';
-import { useEffect, useState } from 'react';
-
+import { LogOut, User, Monitor, Smartphone } from 'lucide-react';
 export function Header() {
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
   const { viewMode, toggleViewMode } = useViewModeStore();
-  const [isOnline, setIsOnline] = useState(true);
-
-  useEffect(() => {
-    setIsOnline(navigator.onLine);
-
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, []);
 
   const handleLogout = async () => {
     await logout();
@@ -80,29 +62,6 @@ export function Header() {
           <span className="hidden sm:inline">Mobilni</span>
         </button>
       </div>
-
-      {/* Online/Offline indicator */}
-      <div className="flex items-center gap-2">
-        {isOnline ? (
-          <div className="flex items-center gap-1 text-sm text-green-600">
-            <Wifi className="h-4 w-4" />
-            <span className="hidden sm:inline">Online</span>
-          </div>
-        ) : (
-          <div className="flex items-center gap-1 text-sm text-orange-600">
-            <WifiOff className="h-4 w-4" />
-            <span className="hidden sm:inline">Offline</span>
-          </div>
-        )}
-      </div>
-
-      {/* Notifications */}
-      <Button variant="ghost" size="icon" className="relative">
-        <Bell className="h-5 w-5" />
-        <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-red-500 text-[10px] font-medium text-white flex items-center justify-center">
-          3
-        </span>
-      </Button>
 
       {/* User menu */}
       <DropdownMenu>
