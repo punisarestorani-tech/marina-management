@@ -67,7 +67,8 @@ export default function DashboardPage() {
         const { data: berths } = await supabase
           .from('berths')
           .select('id, code, pontoon_id, status')
-          .eq('status', 'active');
+          .eq('status', 'active')
+          .order('code');
 
         const totalBerths = berths?.length || 0;
 
@@ -130,11 +131,14 @@ export default function DashboardPage() {
           .order('code');
 
         if (pontoons && berths) {
-          const occupiedBerthIds = new Set(currentBookings?.map(b => b.berth_id) || []);
+          // Get occupied berth codes from bookings
+          const occupiedBerthCodes = new Set(currentBookings?.map(b => b.berth_code) || []);
 
           const pontoonStats = pontoons.map(pontoon => {
-            const pontoonBerths = berths.filter(b => b.pontoon_id === pontoon.id);
-            const occupiedCount = pontoonBerths.filter(b => occupiedBerthIds.has(b.id)).length;
+            // Filter berths by pontoon - berth code starts with pontoon code (e.g., "A-01" starts with "A")
+            const pontoonBerths = berths.filter(b => b.code.startsWith(pontoon.code + '-'));
+            // Count occupied berths by matching berth codes
+            const occupiedCount = pontoonBerths.filter(b => occupiedBerthCodes.has(b.code)).length;
 
             return {
               name: `Ponton ${pontoon.code}`,
