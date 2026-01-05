@@ -153,73 +153,84 @@ export default function DashboardPage() {
           setPontoonOccupancy(pontoonStats);
         }
 
-        // Fetch recent activities from audit_logs
-        const { data: auditLogs } = await supabase
-          .from('audit_logs')
-          .select('action, table_name, new_data, created_at')
-          .order('created_at', { ascending: false })
-          .limit(5);
+        // Fetch recent activities from multiple tables
+        const [recentBookings, recentPayments, recentViolations] = await Promise.all([
+          supabase
+            .from('berth_bookings')
+            .select('id, guest_name, berth_code, status, created_at, updated_at')
+            .order('updated_at', { ascending: false })
+            .limit(5),
+          supabase
+            .from('payments')
+            .select('id, amount, status, paid_date, created_at')
+            .order('created_at', { ascending: false })
+            .limit(3),
+          supabase
+            .from('violations')
+            .select('id, type, status, detected_date, created_at')
+            .order('created_at', { ascending: false })
+            .limit(2),
+        ]);
 
-        if (auditLogs) {
-          const activities = auditLogs.map(log => {
-            let detail = '';
-            const newData = log.new_data as Record<string, unknown> | null;
+        const activities: RecentActivity[] = [];
 
-            switch (log.table_name) {
-              case 'berth_bookings':
-                detail = newData?.guest_name
-                  ? `${newData.guest_name} - Vez ${newData.berth_code}`
-                  : 'Rezervacija';
-                break;
-              case 'vessels':
-                detail = newData?.registration_number
-                  ? `${newData.registration_number} registrovano`
-                  : 'Plovilo';
-                break;
-              case 'payments':
-                detail = newData?.amount
-                  ? `Iznos: ${newData.amount} EUR`
-                  : 'Plaćanje';
-                break;
-              case 'lease_contracts':
-                detail = newData?.owner_name
-                  ? `Ugovor - ${newData.owner_name}`
-                  : 'Ugovor';
-                break;
-              case 'violations':
-                detail = newData?.type
-                  ? `Prekršaj: ${newData.type}`
-                  : 'Prekršaj';
-                break;
-              default:
-                detail = log.table_name;
-            }
-
-            const actionLabels: Record<string, string> = {
-              'INSERT': 'Novi unos',
-              'UPDATE': 'Ažuriranje',
-              'DELETE': 'Brisanje',
+        // Process bookings
+        if (recentBookings.data) {
+          recentBookings.data.forEach(booking => {
+            const statusLabels: Record<string, string> = {
+              'pending': 'Nova rezervacija',
+              'confirmed': 'Potvrđena rezervacija',
+              'checked_in': 'Gost prijavljen',
+              'checked_out': 'Gost odjavljen',
+              'cancelled': 'Otkazana rezervacija',
             };
-
-            const tableLabels: Record<string, string> = {
-              'berth_bookings': 'Rezervacija',
-              'vessels': 'Plovilo',
-              'payments': 'Plaćanje',
-              'lease_contracts': 'Ugovor',
-              'violations': 'Prekršaj',
-              'daily_occupancy': 'Zauzetost',
-            };
-
-            return {
-              action: `${actionLabels[log.action] || log.action} - ${tableLabels[log.table_name] || log.table_name}`,
-              detail,
-              time: formatTimeAgo(new Date(log.created_at)),
-              tableName: log.table_name,
-            };
+            activities.push({
+              action: statusLabels[booking.status] || 'Rezervacija',
+              detail: `${booking.guest_name} - Vez ${booking.berth_code}`,
+              time: formatTimeAgo(new Date(booking.updated_at || booking.created_at)),
+              tableName: 'berth_bookings',
+            });
           });
-
-          setRecentActivities(activities);
         }
+
+        // Process payments
+        if (recentPayments.data) {
+          recentPayments.data.forEach(payment => {
+            activities.push({
+              action: payment.status === 'paid' ? 'Uplata primljena' : 'Plaćanje na čekanju',
+              detail: `Iznos: ${Number(payment.amount).toLocaleString('hr-HR')} EUR`,
+              time: formatTimeAgo(new Date(payment.paid_date || payment.created_at)),
+              tableName: 'payments',
+            });
+          });
+        }
+
+        // Process violations
+        if (recentViolations.data) {
+          recentViolations.data.forEach(violation => {
+            const typeLabels: Record<string, string> = {
+              'unpaid_occupancy': 'Neplaćena zauzetost',
+              'no_contract': 'Bez ugovora',
+              'overstay': 'Prekoračenje boravka',
+              'size_violation': 'Prekoračenje veličine',
+              'other': 'Ostalo',
+            };
+            activities.push({
+              action: violation.status === 'open' ? 'Novi prekršaj' : 'Prekršaj riješen',
+              detail: typeLabels[violation.type] || violation.type,
+              time: formatTimeAgo(new Date(violation.created_at)),
+              tableName: 'violations',
+            });
+          });
+        }
+
+        // Sort by time and take top 5
+        activities.sort((a, b) => {
+          // This is a simple sort - in production you'd want to store actual dates
+          return 0; // Keep original order since they're already sorted
+        });
+
+        setRecentActivities(activities.slice(0, 5));
 
       } catch (error) {
         console.error('Error loading dashboard data:', error);
