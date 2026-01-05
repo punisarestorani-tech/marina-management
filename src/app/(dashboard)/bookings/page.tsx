@@ -782,34 +782,32 @@ export default function BookingsPage() {
       {/* Main Content with Tabs */}
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as ViewTab)}>
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <TabsList className="flex w-full lg:w-auto overflow-x-auto">
-            <TabsTrigger value="today" className="gap-1 sm:gap-2 px-2 sm:px-3 min-w-0 flex-shrink-0">
-              <CalendarDays className="w-4 h-4 flex-shrink-0" />
-              <span className="hidden xs:inline sm:inline">Danas</span>
+          <TabsList className="grid grid-cols-4 w-full sm:flex sm:w-auto">
+            <TabsTrigger value="today" className="flex-col sm:flex-row gap-0.5 sm:gap-2 px-2 sm:px-3 py-2 sm:py-1.5">
+              <CalendarDays className="w-4 h-4" />
+              <span className="text-[10px] sm:text-sm">Danas</span>
               {stats.todayArrivals.length + stats.todayDepartures.length > 0 && (
-                <Badge variant="secondary" className="px-1.5 py-0 text-xs flex-shrink-0">
+                <Badge variant="secondary" className="hidden sm:inline-flex px-1.5 py-0 text-xs">
                   {stats.todayArrivals.length + stats.todayDepartures.length}
                 </Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger value="upcoming" className="gap-1 sm:gap-2 px-2 sm:px-3 min-w-0 flex-shrink-0">
-              <Clock className="w-4 h-4 flex-shrink-0" />
-              <span className="hidden sm:inline">Nadolazece</span>
-              <span className="sm:hidden">Usk.</span>
+            <TabsTrigger value="upcoming" className="flex-col sm:flex-row gap-0.5 sm:gap-2 px-2 sm:px-3 py-2 sm:py-1.5">
+              <Clock className="w-4 h-4" />
+              <span className="text-[10px] sm:text-sm">Dolazi</span>
               {stats.upcomingThisWeek.length > 0 && (
-                <Badge variant="secondary" className="px-1.5 py-0 text-xs flex-shrink-0">
+                <Badge variant="secondary" className="hidden sm:inline-flex px-1.5 py-0 text-xs">
                   {stats.upcomingThisWeek.length}
                 </Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger value="calendar" className="gap-1 sm:gap-2 px-2 sm:px-3 min-w-0 flex-shrink-0">
-              <Calendar className="w-4 h-4 flex-shrink-0" />
-              <span className="hidden sm:inline">Kalendar</span>
-              <span className="sm:hidden">Kal.</span>
+            <TabsTrigger value="calendar" className="flex-col sm:flex-row gap-0.5 sm:gap-2 px-2 sm:px-3 py-2 sm:py-1.5">
+              <Calendar className="w-4 h-4" />
+              <span className="text-[10px] sm:text-sm">Kalendar</span>
             </TabsTrigger>
-            <TabsTrigger value="all" className="gap-1 sm:gap-2 px-2 sm:px-3 min-w-0 flex-shrink-0">
-              <FileText className="w-4 h-4 flex-shrink-0" />
-              <span className="hidden xs:inline sm:inline">Sve</span>
+            <TabsTrigger value="all" className="flex-col sm:flex-row gap-0.5 sm:gap-2 px-2 sm:px-3 py-2 sm:py-1.5">
+              <FileText className="w-4 h-4" />
+              <span className="text-[10px] sm:text-sm">Sve</span>
             </TabsTrigger>
           </TabsList>
 
