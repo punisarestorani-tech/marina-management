@@ -559,21 +559,21 @@ export default function BookingsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Rezervacije</h1>
-          <p className="text-muted-foreground">
+          <p className="text-muted-foreground text-sm sm:text-base">
             Upravljanje rezervacijama tranzitnih vezova
           </p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm">
-            <Download className="w-4 h-4 mr-2" />
-            Export
+            <Download className="w-4 h-4 sm:mr-2" />
+            <span className="hidden sm:inline">Export</span>
           </Button>
-          <Button onClick={() => setShowForm(true)}>
-            <Plus className="w-4 h-4 mr-2" />
-            Nova rezervacija
+          <Button size="sm" onClick={() => setShowForm(true)}>
+            <Plus className="w-4 h-4 sm:mr-2" />
+            <span className="hidden sm:inline">Nova rezervacija</span>
           </Button>
         </div>
       </div>
@@ -705,16 +705,16 @@ export default function BookingsPage() {
                     <div
                       key={booking.id}
                       onClick={() => handleBookingClick(booking)}
-                      className="flex items-center justify-between p-2 rounded-lg bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/30 cursor-pointer transition-colors"
+                      className="flex items-center justify-between gap-2 p-2 rounded-lg bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/30 cursor-pointer transition-colors"
                     >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-green-100 dark:bg-green-800 flex items-center justify-center">
-                          <Ship className="w-5 h-5 text-green-600 dark:text-green-400" />
+                      <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-green-100 dark:bg-green-800 flex items-center justify-center flex-shrink-0">
+                          <Ship className="w-4 h-4 sm:w-5 sm:h-5 text-green-600 dark:text-green-400" />
                         </div>
-                        <div>
-                          <p className="font-medium text-sm">{booking.guestName}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {booking.vesselName || 'N/A'} • Vez {booking.berthCode}
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium text-sm truncate">{booking.guestName}</p>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {booking.vesselName || 'N/A'} • {booking.berthCode}
                           </p>
                         </div>
                       </div>
@@ -722,14 +722,14 @@ export default function BookingsPage() {
                         <Button
                           size="sm"
                           variant="outline"
-                          className="bg-green-500 hover:bg-green-600 text-white border-0"
+                          className="bg-green-500 hover:bg-green-600 text-white border-0 flex-shrink-0"
                           onClick={(e) => {
                             e.stopPropagation();
                             handleStatusChange(booking.id, 'checked_in');
                           }}
                         >
-                          <LogIn className="w-4 h-4 mr-1" />
-                          Check-in
+                          <LogIn className="w-4 h-4 sm:mr-1" />
+                          <span className="hidden sm:inline">Check-in</span>
                         </Button>
                       )}
                     </div>
@@ -745,30 +745,30 @@ export default function BookingsPage() {
                     <div
                       key={booking.id}
                       onClick={() => handleBookingClick(booking)}
-                      className="flex items-center justify-between p-2 rounded-lg bg-orange-50 dark:bg-orange-900/20 hover:bg-orange-100 dark:hover:bg-orange-900/30 cursor-pointer transition-colors"
+                      className="flex items-center justify-between gap-2 p-2 rounded-lg bg-orange-50 dark:bg-orange-900/20 hover:bg-orange-100 dark:hover:bg-orange-900/30 cursor-pointer transition-colors"
                     >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-orange-100 dark:bg-orange-800 flex items-center justify-center">
-                          <Ship className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+                      <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-orange-100 dark:bg-orange-800 flex items-center justify-center flex-shrink-0">
+                          <Ship className="w-4 h-4 sm:w-5 sm:h-5 text-orange-600 dark:text-orange-400" />
                         </div>
-                        <div>
-                          <p className="font-medium text-sm">{booking.guestName}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {booking.vesselName || 'N/A'} • Vez {booking.berthCode}
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium text-sm truncate">{booking.guestName}</p>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {booking.vesselName || 'N/A'} • {booking.berthCode}
                           </p>
                         </div>
                       </div>
                       <Button
                         size="sm"
                         variant="outline"
-                        className="bg-orange-500 hover:bg-orange-600 text-white border-0"
+                        className="bg-orange-500 hover:bg-orange-600 text-white border-0 flex-shrink-0"
                         onClick={(e) => {
                           e.stopPropagation();
                           handleStatusChange(booking.id, 'checked_out');
                         }}
                       >
-                        <LogOut className="w-4 h-4 mr-1" />
-                        Check-out
+                        <LogOut className="w-4 h-4 sm:mr-1" />
+                        <span className="hidden sm:inline">Check-out</span>
                       </Button>
                     </div>
                   ))}
@@ -781,52 +781,56 @@ export default function BookingsPage() {
 
       {/* Main Content with Tabs */}
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as ViewTab)}>
-        <div className="flex items-center justify-between gap-4 flex-wrap">
-          <TabsList className="grid grid-cols-4 w-auto">
-            <TabsTrigger value="today" className="gap-2">
-              <CalendarDays className="w-4 h-4" />
-              Danas
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <TabsList className="flex w-full lg:w-auto overflow-x-auto">
+            <TabsTrigger value="today" className="gap-1 sm:gap-2 px-2 sm:px-3 min-w-0 flex-shrink-0">
+              <CalendarDays className="w-4 h-4 flex-shrink-0" />
+              <span className="hidden xs:inline sm:inline">Danas</span>
               {stats.todayArrivals.length + stats.todayDepartures.length > 0 && (
-                <Badge variant="secondary" className="ml-1 px-1.5 py-0 text-xs">
+                <Badge variant="secondary" className="px-1.5 py-0 text-xs flex-shrink-0">
                   {stats.todayArrivals.length + stats.todayDepartures.length}
                 </Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger value="upcoming" className="gap-2">
-              <Clock className="w-4 h-4" />
-              Nadolazece
+            <TabsTrigger value="upcoming" className="gap-1 sm:gap-2 px-2 sm:px-3 min-w-0 flex-shrink-0">
+              <Clock className="w-4 h-4 flex-shrink-0" />
+              <span className="hidden sm:inline">Nadolazece</span>
+              <span className="sm:hidden">Usk.</span>
               {stats.upcomingThisWeek.length > 0 && (
-                <Badge variant="secondary" className="ml-1 px-1.5 py-0 text-xs">
+                <Badge variant="secondary" className="px-1.5 py-0 text-xs flex-shrink-0">
                   {stats.upcomingThisWeek.length}
                 </Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger value="calendar" className="gap-2">
-              <Calendar className="w-4 h-4" />
-              Kalendar
+            <TabsTrigger value="calendar" className="gap-1 sm:gap-2 px-2 sm:px-3 min-w-0 flex-shrink-0">
+              <Calendar className="w-4 h-4 flex-shrink-0" />
+              <span className="hidden sm:inline">Kalendar</span>
+              <span className="sm:hidden">Kal.</span>
             </TabsTrigger>
-            <TabsTrigger value="all" className="gap-2">
-              <FileText className="w-4 h-4" />
-              Sve
+            <TabsTrigger value="all" className="gap-1 sm:gap-2 px-2 sm:px-3 min-w-0 flex-shrink-0">
+              <FileText className="w-4 h-4 flex-shrink-0" />
+              <span className="hidden xs:inline sm:inline">Sve</span>
             </TabsTrigger>
           </TabsList>
 
           {/* Filters */}
-          <div className="flex items-center gap-2">
-            <div className="relative">
+          <div className="flex items-center gap-2 w-full lg:w-auto">
+            <div className="relative flex-1 lg:flex-initial">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
-                placeholder="Pretrazi gosta, plovilo..."
+                placeholder="Pretrazi..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 w-64"
+                className="pl-9 w-full lg:w-48 xl:w-64"
               />
             </div>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm">
-                  <Filter className="w-4 h-4 mr-2" />
-                  {statusFilter === 'all' ? 'Status' : BOOKING_STATUS_COLORS[statusFilter].label}
+                <Button variant="outline" size="sm" className="flex-shrink-0">
+                  <Filter className="w-4 h-4 sm:mr-2" />
+                  <span className="hidden sm:inline">
+                    {statusFilter === 'all' ? 'Status' : BOOKING_STATUS_COLORS[statusFilter].label}
+                  </span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
