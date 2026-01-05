@@ -72,11 +72,13 @@ export default function DashboardPage() {
 
         const totalBerths = berths?.length || 0;
 
-        // Fetch current bookings (checked_in)
+        // Fetch current bookings (checked_in) - filter by today's date
         const { data: currentBookings } = await supabase
           .from('berth_bookings')
           .select('berth_id, berth_code')
-          .eq('status', 'checked_in');
+          .eq('status', 'checked_in')
+          .lte('check_in_date', today)
+          .gte('check_out_date', today);
 
         const occupiedBerths = currentBookings?.length || 0;
         const freeBerths = totalBerths - occupiedBerths;
