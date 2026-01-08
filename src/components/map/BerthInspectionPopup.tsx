@@ -79,6 +79,18 @@ export function BerthInspectionPopup({
   const [reservation, setReservation] = useState<ReservationData | null>(null);
   const [isLoadingReservation, setIsLoadingReservation] = useState(true);
 
+  // Reset all state when berth changes
+  useEffect(() => {
+    setReservation(null);
+    setIsLoadingReservation(true);
+    setStatus('');
+    setNotes('');
+    setFoundVesselName('');
+    setFoundVesselRegistration('');
+    setFoundVesselPhoto('');
+    setSaved(false);
+  }, [marker.code]);
+
   // Load current reservation for this berth
   useEffect(() => {
     const loadReservation = async () => {
@@ -97,11 +109,10 @@ export function BerthInspectionPopup({
           .limit(1)
           .single();
 
-        if (data) {
-          setReservation(data);
-        }
+        setReservation(data || null);
       } catch (err) {
-        // No reservation found is OK
+        // No reservation found - explicitly set to null
+        setReservation(null);
       } finally {
         setIsLoadingReservation(false);
       }
