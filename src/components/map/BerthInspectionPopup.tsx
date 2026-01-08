@@ -35,6 +35,7 @@ import {
 } from '@/types/inspection.types';
 import { getSupabaseClient } from '@/lib/supabase/client';
 import { PhotoUpload } from '@/components/ui/photo-upload';
+import { ClickableImage } from '@/components/ui/image-lightbox';
 
 // Reservation data interface
 interface ReservationData {
@@ -250,7 +251,10 @@ export function BerthInspectionPopup({
             <div className="space-y-0">
               {/* Vessel Image */}
               {reservation.vessel_image_url && (
-                <div className="relative">
+                <ClickableImage
+                  src={reservation.vessel_image_url}
+                  alt={reservation.vessel_name || 'Plovilo'}
+                >
                   <img
                     src={reservation.vessel_image_url}
                     alt={reservation.vessel_name || 'Plovilo'}
@@ -266,7 +270,7 @@ export function BerthInspectionPopup({
                       </p>
                     )}
                   </div>
-                </div>
+                </ClickableImage>
               )}
 
               <div className="p-3 space-y-2">

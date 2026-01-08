@@ -4,6 +4,7 @@ import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Camera, Upload, X, Loader2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { ClickableImage } from '@/components/ui/image-lightbox';
 
 interface PhotoUploadProps {
   onPhotoUploaded: (url: string) => void;
@@ -139,20 +140,22 @@ export function PhotoUpload({
       {/* Preview or upload buttons */}
       {previewUrl ? (
         <div className="relative">
-          <img
-            src={previewUrl}
-            alt="Slika plovila"
-            className="w-full h-32 object-cover rounded-lg border"
-          />
+          <ClickableImage src={previewUrl} alt="Slika plovila">
+            <img
+              src={previewUrl}
+              alt="Slika plovila"
+              className="w-full h-32 object-cover rounded-lg border"
+            />
+          </ClickableImage>
           {isUploading && (
-            <div className="absolute inset-0 bg-black/50 rounded-lg flex items-center justify-center">
+            <div className="absolute inset-0 bg-black/50 rounded-lg flex items-center justify-center pointer-events-none">
               <Loader2 className="w-6 h-6 text-white animate-spin" />
             </div>
           )}
           {!isUploading && (
             <button
               onClick={handleRemovePhoto}
-              className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
+              className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 z-10"
             >
               <X className="w-4 h-4" />
             </button>

@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { getSupabaseClient } from '@/lib/supabase/client';
 import { PhotoUpload } from '@/components/ui/photo-upload';
+import { ClickableImage } from '@/components/ui/image-lightbox';
 import { useAuthStore } from '@/stores/authStore';
 
 interface ReportedIssue {
@@ -237,11 +238,16 @@ export default function PrijavaProblemaPage() {
                       </Badge>
                     </div>
                     {report.photo_urls && report.photo_urls.length > 0 && (
-                      <img
+                      <ClickableImage
                         src={report.photo_urls[0]}
                         alt="Slika problema"
-                        className="mt-2 w-full h-24 object-cover rounded"
-                      />
+                      >
+                        <img
+                          src={report.photo_urls[0]}
+                          alt="Slika problema"
+                          className="mt-2 w-full h-24 object-cover rounded"
+                        />
+                      </ClickableImage>
                     )}
                     <p className="text-xs text-muted-foreground mt-2">
                       {new Date(report.created_at).toLocaleDateString('hr-HR', {

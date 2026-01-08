@@ -32,6 +32,7 @@ import {
 } from '@/components/ui/dialog';
 import { Search, Map, Ship, Droplets, Zap, Pencil, Ruler, RefreshCw, Loader2, Calendar, User, Anchor } from 'lucide-react';
 import { getSupabaseClient } from '@/lib/supabase/client';
+import { ClickableImage } from '@/components/ui/image-lightbox';
 
 interface VesselInfo {
   registration: string;
@@ -441,7 +442,10 @@ export default function BerthsPage() {
                   <div className="space-y-0">
                     {/* Vessel Image */}
                     {editingBerth.vesselInfo.imageUrl && (
-                      <div className="relative">
+                      <ClickableImage
+                        src={editingBerth.vesselInfo.imageUrl}
+                        alt={editingBerth.vesselInfo.name || 'Plovilo'}
+                      >
                         <img
                           src={editingBerth.vesselInfo.imageUrl}
                           alt={editingBerth.vesselInfo.name || 'Plovilo'}
@@ -455,7 +459,7 @@ export default function BerthsPage() {
                             {editingBerth.vesselInfo.registration}
                           </p>
                         </div>
-                      </div>
+                      </ClickableImage>
                     )}
                     <div className="p-3 space-y-2">
                       {!editingBerth.vesselInfo.imageUrl && (
