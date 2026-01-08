@@ -56,6 +56,7 @@ export default function VesselsPage() {
   const [editRegistration, setEditRegistration] = useState('');
   const [editLength, setEditLength] = useState('');
   const [editImageUrl, setEditImageUrl] = useState('');
+  const [isChangingImage, setIsChangingImage] = useState(false);
 
   const canEdit = user && hasPermission(user.role, 'EDIT_VESSELS');
 
@@ -106,6 +107,7 @@ export default function VesselsPage() {
     setEditRegistration(vessel.vessel_registration || '');
     setEditLength(vessel.vessel_length?.toString() || '');
     setEditImageUrl(vessel.vessel_image_url || '');
+    setIsChangingImage(false);
     setIsEditDialogOpen(true);
   };
 
@@ -289,7 +291,7 @@ export default function VesselsPage() {
             {/* Vessel Image */}
             <div className="space-y-2">
               <Label>Slika plovila</Label>
-              {editImageUrl ? (
+              {editImageUrl && !isChangingImage ? (
                 <div className="space-y-2">
                   <ClickableImage src={editImageUrl} alt={editName || 'Plovilo'}>
                     <img
@@ -298,24 +300,51 @@ export default function VesselsPage() {
                       className="w-full h-40 object-cover rounded-lg border"
                     />
                   </ClickableImage>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setEditImageUrl('')}
-                    className="w-full"
-                  >
-                    Ukloni sliku
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsChangingImage(true)}
+                      className="flex-1"
+                    >
+                      Izmjeni sliku
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setEditImageUrl('')}
+                      className="flex-1 text-red-600 hover:text-red-700"
+                    >
+                      Ukloni sliku
+                    </Button>
+                  </div>
                 </div>
               ) : (
-                <PhotoUpload
-                  currentPhotoUrl={editImageUrl}
-                  onPhotoUploaded={(url) => setEditImageUrl(url)}
-                  onPhotoRemoved={() => setEditImageUrl('')}
-                  bucketName="vessel-photos"
-                  folderPath="vessels"
-                />
+                <div className="space-y-2">
+                  <PhotoUpload
+                    currentPhotoUrl=""
+                    onPhotoUploaded={(url) => {
+                      setEditImageUrl(url);
+                      setIsChangingImage(false);
+                    }}
+                    onPhotoRemoved={() => setEditImageUrl('')}
+                    bucketName="vessel-photos"
+                    folderPath="vessels"
+                  />
+                  {isChangingImage && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setIsChangingImage(false)}
+                      className="w-full"
+                    >
+                      Odustani
+                    </Button>
+                  )}
+                </div>
               )}
             </div>
 
