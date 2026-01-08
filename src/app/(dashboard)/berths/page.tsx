@@ -30,8 +30,18 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Search, Map, Ship, Droplets, Zap, Pencil, Ruler, RefreshCw, Loader2 } from 'lucide-react';
+import { Search, Map, Ship, Droplets, Zap, Pencil, Ruler, RefreshCw, Loader2, Calendar, User, Anchor } from 'lucide-react';
 import { getSupabaseClient } from '@/lib/supabase/client';
+
+interface VesselInfo {
+  registration: string;
+  name: string | null;
+  length: number | null;
+  imageUrl: string | null;
+  guestName: string | null;
+  checkInDate: string | null;
+  checkOutDate: string | null;
+}
 
 interface BerthData {
   id: string;
@@ -43,6 +53,7 @@ interface BerthData {
   status: string;
   occupancyStatus: string;
   vessel: string | null;
+  vesselInfo: VesselInfo | null;
   hasWater: boolean;
   hasElectricity: boolean;
   maxVesselLength: number | null;
@@ -91,16 +102,25 @@ export default function BerthsPage() {
       // Fetch active bookings to determine occupancy status
       const { data: bookingsData } = await supabase
         .from('berth_bookings')
-        .select('berth_code, vessel_registration, status')
+        .select('berth_code, vessel_registration, vessel_name, vessel_length, vessel_image_url, guest_name, check_in_date, check_out_date, status')
         .in('status', ['checked_in', 'confirmed', 'pending'])
         .lte('check_in_date', today)
         .gt('check_out_date', today);
 
       // Create a map of berth_code to booking info
-      const bookingMap: Record<string, { vessel: string | null; status: string }> = {};
+      const bookingMap: Record<string, { vessel: string | null; vesselInfo: VesselInfo | null; status: string }> = {};
       bookingsData?.forEach((booking) => {
         bookingMap[booking.berth_code] = {
           vessel: booking.vessel_registration,
+          vesselInfo: booking.vessel_registration ? {
+            registration: booking.vessel_registration,
+            name: booking.vessel_name,
+            length: booking.vessel_length,
+            imageUrl: booking.vessel_image_url,
+            guestName: booking.guest_name,
+            checkInDate: booking.check_in_date,
+            checkOutDate: booking.check_out_date,
+          } : null,
           status: booking.status === 'checked_in' ? 'occupied' : 'reserved',
         };
       });
@@ -120,6 +140,7 @@ export default function BerthsPage() {
           status: berth.status || 'active',
           occupancyStatus: booking?.status || 'free',
           vessel: booking?.vessel || null,
+          vesselInfo: booking?.vesselInfo || null,
           hasWater: berth.has_water || false,
           hasElectricity: berth.has_electricity || false,
           maxVesselLength: berth.max_vessel_length,
@@ -408,6 +429,88 @@ export default function BerthsPage() {
           </DialogHeader>
           {editingBerth && (
             <div className="grid gap-4 py-4">
+              {/* Current Vessel Section */}
+              {editingBerth.vesselInfo ? (
+                <div className="border rounded-lg overflow-hidden">
+                  <div className="bg-blue-50 dark:bg-blue-900/30 px-3 py-2 border-b">
+                    <p className="text-xs font-medium text-blue-700 dark:text-blue-300 flex items-center gap-1">
+                      <Ship className="h-3 w-3" />
+                      TRENUTNO PLOVILO NA VEZU
+                    </p>
+                  </div>
+                  <div className="space-y-0">
+                    {/* Vessel Image */}
+                    {editingBerth.vesselInfo.imageUrl && (
+                      <div className="relative">
+                        <img
+                          src={editingBerth.vesselInfo.imageUrl}
+                          alt={editingBerth.vesselInfo.name || 'Plovilo'}
+                          className="w-full h-36 object-cover"
+                        />
+                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2">
+                          <p className="text-white font-semibold text-sm">
+                            {editingBerth.vesselInfo.name || 'Nepoznato plovilo'}
+                          </p>
+                          <p className="text-white/80 text-xs font-mono">
+                            {editingBerth.vesselInfo.registration}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                    <div className="p-3 space-y-2">
+                      {!editingBerth.vesselInfo.imageUrl && (
+                        <div className="flex items-center gap-3">
+                          <div className="bg-blue-100 dark:bg-blue-900/50 p-2 rounded-lg">
+                            <Anchor className="h-5 w-5 text-blue-600" />
+                          </div>
+                          <div>
+                            <p className="font-semibold">
+                              {editingBerth.vesselInfo.name || 'Nepoznato plovilo'}
+                            </p>
+                            <p className="text-sm text-muted-foreground font-mono">
+                              {editingBerth.vesselInfo.registration}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        {editingBerth.vesselInfo.guestName && (
+                          <div className="col-span-2">
+                            <p className="text-xs text-muted-foreground flex items-center gap-1">
+                              <User className="h-3 w-3" />
+                              Gost
+                            </p>
+                            <p className="font-medium">{editingBerth.vesselInfo.guestName}</p>
+                          </div>
+                        )}
+                        {editingBerth.vesselInfo.length && (
+                          <div>
+                            <p className="text-xs text-muted-foreground">Dužina plovila</p>
+                            <p className="font-medium">{editingBerth.vesselInfo.length}m</p>
+                          </div>
+                        )}
+                        {editingBerth.vesselInfo.checkInDate && editingBerth.vesselInfo.checkOutDate && (
+                          <div className="col-span-2">
+                            <p className="text-xs text-muted-foreground flex items-center gap-1">
+                              <Calendar className="h-3 w-3" />
+                              Period rezervacije
+                            </p>
+                            <p className="font-medium">
+                              {new Date(editingBerth.vesselInfo.checkInDate).toLocaleDateString('hr-HR')} - {new Date(editingBerth.vesselInfo.checkOutDate).toLocaleDateString('hr-HR')}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="border rounded-lg p-4 text-center text-muted-foreground bg-slate-50 dark:bg-slate-900/50">
+                  <Ship className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                  <p className="text-sm">Nema plovila na ovom vezu</p>
+                </div>
+              )}
+
               {/* Amenities Section */}
               <div className="space-y-3">
                 <Label className="text-sm font-medium">Priključci</Label>
