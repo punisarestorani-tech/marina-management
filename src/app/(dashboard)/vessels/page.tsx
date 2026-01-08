@@ -26,6 +26,8 @@ import { Search, Ship, Anchor, Pencil, Loader2, User, Calendar } from 'lucide-re
 import { useAuthStore } from '@/stores/authStore';
 import { hasPermission } from '@/lib/auth/rbac';
 import { getSupabaseClient } from '@/lib/supabase/client';
+import { ClickableImage } from '@/components/ui/image-lightbox';
+import { PhotoUpload } from '@/components/ui/photo-upload';
 
 interface Vessel {
   id: string;
@@ -33,6 +35,7 @@ interface Vessel {
   vessel_name: string | null;
   vessel_registration: string | null;
   vessel_length: number | null;
+  vessel_image_url: string | null;
   guest_name: string;
   check_in_date: string;
   check_out_date: string;
@@ -52,6 +55,7 @@ export default function VesselsPage() {
   const [editName, setEditName] = useState('');
   const [editRegistration, setEditRegistration] = useState('');
   const [editLength, setEditLength] = useState('');
+  const [editImageUrl, setEditImageUrl] = useState('');
 
   const canEdit = user && hasPermission(user.role, 'EDIT_VESSELS');
 
@@ -64,7 +68,7 @@ export default function VesselsPage() {
 
         const { data, error } = await supabase
           .from('berth_bookings')
-          .select('id, berth_code, vessel_name, vessel_registration, vessel_length, guest_name, check_in_date, check_out_date, status')
+          .select('id, berth_code, vessel_name, vessel_registration, vessel_length, vessel_image_url, guest_name, check_in_date, check_out_date, status')
           .in('status', ['confirmed', 'checked_in', 'pending'])
           .lte('check_in_date', today)
           .gte('check_out_date', today)
@@ -101,6 +105,7 @@ export default function VesselsPage() {
     setEditName(vessel.vessel_name || '');
     setEditRegistration(vessel.vessel_registration || '');
     setEditLength(vessel.vessel_length?.toString() || '');
+    setEditImageUrl(vessel.vessel_image_url || '');
     setIsEditDialogOpen(true);
   };
 
@@ -117,6 +122,7 @@ export default function VesselsPage() {
           vessel_name: editName.trim() || null,
           vessel_registration: editRegistration.trim() || null,
           vessel_length: editLength ? parseFloat(editLength) : null,
+          vessel_image_url: editImageUrl || null,
         })
         .eq('id', editingVessel.id);
 
@@ -133,6 +139,7 @@ export default function VesselsPage() {
               vessel_name: editName.trim() || null,
               vessel_registration: editRegistration.trim() || null,
               vessel_length: editLength ? parseFloat(editLength) : null,
+              vessel_image_url: editImageUrl || null,
             }
           : v
       ));
@@ -279,6 +286,39 @@ export default function VesselsPage() {
           </DialogHeader>
 
           <div className="space-y-4 py-4">
+            {/* Vessel Image */}
+            <div className="space-y-2">
+              <Label>Slika plovila</Label>
+              {editImageUrl ? (
+                <div className="space-y-2">
+                  <ClickableImage src={editImageUrl} alt={editName || 'Plovilo'}>
+                    <img
+                      src={editImageUrl}
+                      alt={editName || 'Plovilo'}
+                      className="w-full h-40 object-cover rounded-lg border"
+                    />
+                  </ClickableImage>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setEditImageUrl('')}
+                    className="w-full"
+                  >
+                    Ukloni sliku
+                  </Button>
+                </div>
+              ) : (
+                <PhotoUpload
+                  currentPhotoUrl={editImageUrl}
+                  onPhotoUploaded={(url) => setEditImageUrl(url)}
+                  onPhotoRemoved={() => setEditImageUrl('')}
+                  bucketName="vessel-photos"
+                  folderPath="vessels"
+                />
+              )}
+            </div>
+
             <div className="space-y-2">
               <Label>Ime plovila</Label>
               <Input
