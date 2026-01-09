@@ -630,6 +630,24 @@ export default function PaymentsPage() {
 
           {selectedBooking && (
             <div className="space-y-4 py-4">
+              {/* Booking Period */}
+              <div className="bg-blue-50 dark:bg-blue-900/30 rounded-lg p-3 border border-blue-200 dark:border-blue-800">
+                <div className="flex items-center gap-2 mb-2">
+                  <Calendar className="h-4 w-4 text-blue-600" />
+                  <span className="text-sm font-medium text-blue-700 dark:text-blue-300">Period rezervacije</span>
+                </div>
+                <p className="text-lg font-bold">
+                  {new Date(selectedBooking.check_in_date).toLocaleDateString('hr-HR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                  {' - '}
+                  {new Date(selectedBooking.check_out_date).toLocaleDateString('hr-HR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {Math.ceil((new Date(selectedBooking.check_out_date).getTime() - new Date(selectedBooking.check_in_date).getTime()) / (1000 * 60 * 60 * 24))} dana
+                  {' • '}
+                  {(selectedBooking.total_amount / Math.ceil((new Date(selectedBooking.check_out_date).getTime() - new Date(selectedBooking.check_in_date).getTime()) / (1000 * 60 * 60 * 24))).toLocaleString('hr-HR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €/dan
+                </p>
+              </div>
+
               {/* Summary */}
               <div className="bg-slate-50 dark:bg-slate-900 rounded-lg p-3 grid grid-cols-3 gap-4 text-center">
                 <div>
@@ -664,37 +682,73 @@ export default function PaymentsPage() {
                 </div>
               ) : (
                 <div className="space-y-3 max-h-[300px] overflow-y-auto">
-                  {paymentHistory.map((payment) => (
-                    <div
-                      key={payment.id}
-                      className="border rounded-lg p-3 flex items-center justify-between"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="bg-green-100 dark:bg-green-900/50 p-2 rounded-full">
-                          <Banknote className="h-4 w-4 text-green-600" />
+                  {(() => {
+                    const totalDays = Math.ceil((new Date(selectedBooking.check_out_date).getTime() - new Date(selectedBooking.check_in_date).getTime()) / (1000 * 60 * 60 * 24));
+                    const pricePerDay = selectedBooking.total_amount / totalDays;
+                    let cumulativeDays = 0;
+
+                    return paymentHistory.map((payment, index) => {
+                      const paymentDays = Math.round(payment.amount / pricePerDay);
+                      const periodStart = new Date(selectedBooking.check_in_date);
+                      periodStart.setDate(periodStart.getDate() + cumulativeDays);
+                      const periodEnd = new Date(selectedBooking.check_in_date);
+                      periodEnd.setDate(periodEnd.getDate() + cumulativeDays + paymentDays);
+                      cumulativeDays += paymentDays;
+
+                      // Ensure end date doesn't exceed checkout
+                      const checkOut = new Date(selectedBooking.check_out_date);
+                      const actualEndDate = periodEnd > checkOut ? checkOut : periodEnd;
+
+                      return (
+                        <div
+                          key={payment.id}
+                          className="border rounded-lg p-3"
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-3">
+                              <div className="bg-green-100 dark:bg-green-900/50 p-2 rounded-full">
+                                <Banknote className="h-4 w-4 text-green-600" />
+                              </div>
+                              <div>
+                                <p className="font-semibold text-green-600">
+                                  +{payment.amount.toLocaleString('hr-HR', { minimumFractionDigits: 2 })} €
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {PAYMENT_METHOD_LABELS[payment.payment_method] || payment.payment_method}
+                                  {payment.reference_number && ` • ${payment.reference_number}`}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-sm font-medium">
+                                {new Date(payment.payment_date).toLocaleDateString('hr-HR')}
+                              </p>
+                            </div>
+                          </div>
+                          {/* Period that this payment covers */}
+                          <div className="bg-slate-100 dark:bg-slate-800 rounded px-2 py-1 mt-2">
+                            <p className="text-xs text-muted-foreground flex items-center gap-1">
+                              <Calendar className="h-3 w-3" />
+                              Pokriva period: {' '}
+                              <span className="font-medium text-foreground">
+                                {periodStart.toLocaleDateString('hr-HR', { day: '2-digit', month: '2-digit' })}
+                                {' - '}
+                                {actualEndDate.toLocaleDateString('hr-HR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                              </span>
+                              <span className="text-muted-foreground">
+                                ({paymentDays} {paymentDays === 1 ? 'dan' : paymentDays < 5 ? 'dana' : 'dana'})
+                              </span>
+                            </p>
+                          </div>
+                          {payment.notes && (
+                            <p className="text-xs text-muted-foreground mt-1 italic">
+                              {payment.notes}
+                            </p>
+                          )}
                         </div>
-                        <div>
-                          <p className="font-semibold text-green-600">
-                            +{payment.amount.toLocaleString('hr-HR', { minimumFractionDigits: 2 })} €
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {PAYMENT_METHOD_LABELS[payment.payment_method] || payment.payment_method}
-                            {payment.reference_number && ` • ${payment.reference_number}`}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm">
-                          {new Date(payment.payment_date).toLocaleDateString('hr-HR')}
-                        </p>
-                        {payment.notes && (
-                          <p className="text-xs text-muted-foreground truncate max-w-[150px]">
-                            {payment.notes}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+                      );
+                    });
+                  })()}
                 </div>
               )}
             </div>
