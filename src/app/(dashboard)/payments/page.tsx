@@ -410,6 +410,9 @@ export default function PaymentsPage() {
               <TableBody>
                 {filteredBookings.map((booking) => {
                   const remaining = booking.total_amount - (booking.amount_paid || 0);
+                  const paymentProgress = booking.total_amount > 0
+                    ? Math.min(100, Math.round(((booking.amount_paid || 0) / booking.total_amount) * 100))
+                    : 0;
                   return (
                     <TableRow key={booking.id}>
                       <TableCell>
@@ -464,7 +467,26 @@ export default function PaymentsPage() {
                           <span className="text-muted-foreground">0.00 €</span>
                         )}
                       </TableCell>
-                      <TableCell>{getStatusBadge(booking.payment_status)}</TableCell>
+                      <TableCell>
+                        <div className="space-y-1">
+                          {getStatusBadge(booking.payment_status)}
+                          <div className="w-16">
+                            <div className="h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full">
+                              <div
+                                className={`h-1.5 rounded-full transition-all ${
+                                  paymentProgress >= 100
+                                    ? 'bg-green-500'
+                                    : paymentProgress > 0
+                                    ? 'bg-yellow-500'
+                                    : 'bg-red-500'
+                                }`}
+                                style={{ width: `${paymentProgress}%` }}
+                              />
+                            </div>
+                            <p className="text-xs text-muted-foreground text-center mt-0.5">{paymentProgress}%</p>
+                          </div>
+                        </div>
+                      </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">
                           <Button
