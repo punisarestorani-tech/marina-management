@@ -33,31 +33,23 @@ import { format } from 'date-fns';
 import { hr } from 'date-fns/locale';
 import { getSupabaseClient } from '@/lib/supabase/client';
 
-// Contract interface matching database
+// Contract interface based on berth_bookings
 interface Contract {
   id: string;
   berth_code: string;
-  vessel_registration: string;
-  vessel_name: string;
+  vessel_registration: string | null;
+  vessel_name: string | null;
   owner_name: string;
   owner_email: string | null;
   owner_phone: string | null;
   start_date: string;
   end_date: string;
-  annual_price: number;
-  payment_schedule: string;
+  total_price: number;
+  payment_status: string;
   status: string;
-  notes: string | null;
   paid_amount: number;
   document_url?: string;
 }
-
-const PAYMENT_SCHEDULE_LABELS: Record<string, string> = {
-  monthly: 'Mjesečno',
-  quarterly: 'Kvartalno',
-  annual: 'Godišnje',
-  upfront: 'Unaprijed',
-};
 
 export default function ContractsPage() {
   const [search, setSearch] = useState('');
@@ -70,74 +62,62 @@ export default function ContractsPage() {
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Fetch contracts from Supabase
+  // Fetch contracts from berth_bookings (for presentation)
   const fetchContracts = async () => {
     setIsLoading(true);
     try {
       const supabase = getSupabaseClient();
 
-      // Fetch contracts with berth and vessel info
-      const { data: contractsData, error: contractsError } = await supabase
-        .from('lease_contracts')
+      // Fetch bookings as contracts - only long-term ones (more than 30 days)
+      const { data: bookingsData, error: bookingsError } = await supabase
+        .from('berth_bookings')
         .select(`
           id,
-          owner_name,
-          owner_email,
-          owner_phone,
-          start_date,
-          end_date,
-          annual_price,
-          payment_schedule,
-          status,
-          notes,
-          berths!inner (code),
-          vessels!inner (registration_number, name)
+          berth_code,
+          guest_name,
+          guest_email,
+          guest_phone,
+          vessel_name,
+          vessel_registration,
+          check_in_date,
+          check_out_date,
+          total_amount,
+          amount_paid,
+          payment_status,
+          status
         `)
-        .order('start_date', { ascending: false });
+        .in('status', ['confirmed', 'checked_in', 'checked_out'])
+        .order('check_in_date', { ascending: false });
 
-      if (contractsError) {
-        console.error('Error loading contracts:', contractsError);
+      if (bookingsError) {
+        console.error('Error loading contracts:', bookingsError);
         return;
       }
 
-      // Fetch payments for each contract to calculate paid amounts
-      const { data: paymentsData, error: paymentsError } = await supabase
-        .from('payments')
-        .select('contract_id, amount, status')
-        .eq('status', 'paid');
-
-      if (paymentsError) {
-        console.error('Error loading payments:', paymentsError);
-      }
-
-      // Calculate paid amounts per contract
-      const paidByContract: Record<string, number> = {};
-      if (paymentsData) {
-        paymentsData.forEach((payment) => {
-          if (!paidByContract[payment.contract_id]) {
-            paidByContract[payment.contract_id] = 0;
-          }
-          paidByContract[payment.contract_id] += payment.amount;
-        });
-      }
-
-      // Transform data
-      const transformedContracts: Contract[] = (contractsData || []).map((c: any) => ({
-        id: c.id,
-        berth_code: c.berths?.code || '',
-        vessel_registration: c.vessels?.registration_number || '',
-        vessel_name: c.vessels?.name || '',
-        owner_name: c.owner_name,
-        owner_email: c.owner_email,
-        owner_phone: c.owner_phone,
-        start_date: c.start_date,
-        end_date: c.end_date,
-        annual_price: c.annual_price,
-        payment_schedule: c.payment_schedule,
-        status: c.status,
-        notes: c.notes,
-        paid_amount: paidByContract[c.id] || 0,
-      }));
+      // Transform bookings to contract format
+      // Filter for longer stays (more than 30 days) to show as "contracts"
+      const transformedContracts: Contract[] = (bookingsData || [])
+        .filter((b: any) => {
+          const checkIn = new Date(b.check_in_date);
+          const checkOut = new Date(b.check_out_date);
+          const days = Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24));
+          return days >= 30; // Only show bookings >= 30 days as contracts
+        })
+        .map((b: any) => ({
+          id: b.id,
+          berth_code: b.berth_code,
+          vessel_registration: b.vessel_registration,
+          vessel_name: b.vessel_name,
+          owner_name: b.guest_name,
+          owner_email: b.guest_email,
+          owner_phone: b.guest_phone,
+          start_date: b.check_in_date,
+          end_date: b.check_out_date,
+          total_price: b.total_amount,
+          payment_status: b.payment_status,
+          status: b.status === 'checked_out' ? 'expired' : 'active',
+          paid_amount: b.amount_paid || 0,
+        }));
 
       setContracts(transformedContracts);
     } catch (err) {
@@ -154,8 +134,8 @@ export default function ContractsPage() {
   const filteredContracts = contracts.filter((contract) => {
     const matchesSearch =
       contract.berth_code.toLowerCase().includes(search.toLowerCase()) ||
-      contract.vessel_registration.toLowerCase().includes(search.toLowerCase()) ||
-      contract.vessel_name.toLowerCase().includes(search.toLowerCase()) ||
+      (contract.vessel_registration && contract.vessel_registration.toLowerCase().includes(search.toLowerCase())) ||
+      (contract.vessel_name && contract.vessel_name.toLowerCase().includes(search.toLowerCase())) ||
       contract.owner_name.toLowerCase().includes(search.toLowerCase());
     const matchesStatus = filterStatus === 'all' || contract.status === filterStatus;
     return matchesSearch && matchesStatus;
@@ -178,7 +158,7 @@ export default function ContractsPage() {
 
   // Calculate totals only for active contracts
   const activeContracts = contracts.filter(c => c.status === 'active');
-  const totalRevenue = activeContracts.reduce((sum, c) => sum + c.annual_price, 0);
+  const totalRevenue = activeContracts.reduce((sum, c) => sum + c.total_price, 0);
   const totalPaid = contracts.reduce((sum, c) => sum + c.paid_amount, 0);
 
   const handleOpenUploadDialog = (contract: Contract) => {
@@ -230,6 +210,17 @@ export default function ContractsPage() {
     }
   };
 
+  // Calculate contract duration and payment type based on duration
+  const getPaymentSchedule = (startDate: string, endDate: string) => {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const months = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24 * 30));
+
+    if (months >= 10) return 'Godišnje';
+    if (months >= 3) return 'Sezonski';
+    return 'Mjesečno';
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -266,12 +257,12 @@ export default function ContractsPage() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Godišnji prihod</CardTitle>
+            <CardTitle className="text-sm font-medium">Ukupna vrijednost</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold flex items-center gap-1">
               <Euro className="h-5 w-5" />
-              {totalRevenue.toLocaleString('hr-HR')}
+              {totalRevenue.toLocaleString('hr-HR', { minimumFractionDigits: 2 })}
             </div>
             <p className="text-xs text-muted-foreground">planirani prihod</p>
           </CardContent>
@@ -283,7 +274,7 @@ export default function ContractsPage() {
           <CardContent>
             <div className="text-2xl font-bold flex items-center gap-1">
               <Euro className="h-5 w-5" />
-              {totalPaid.toLocaleString('hr-HR')}
+              {totalPaid.toLocaleString('hr-HR', { minimumFractionDigits: 2 })}
             </div>
             <p className="text-xs text-muted-foreground">
               {totalRevenue > 0 ? Math.round((totalPaid / totalRevenue) * 100) : 0}% od ukupnog
@@ -354,18 +345,20 @@ export default function ContractsPage() {
             </TableHeader>
             <TableBody>
               {filteredContracts.map((contract) => {
-                const paymentProgress = contract.annual_price > 0
-                  ? Math.min(100, Math.round((contract.paid_amount / contract.annual_price) * 100))
+                const paymentProgress = contract.total_price > 0
+                  ? Math.min(100, Math.round((contract.paid_amount / contract.total_price) * 100))
                   : 0;
                 return (
                 <TableRow key={contract.id}>
                   <TableCell className="font-medium">{contract.berth_code}</TableCell>
                   <TableCell>
                     <div>
-                      <p>{contract.vessel_registration}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {contract.vessel_name}
-                      </p>
+                      <p>{contract.vessel_name || '-'}</p>
+                      {contract.vessel_registration && (
+                        <p className="text-xs text-muted-foreground font-mono">
+                          {contract.vessel_registration}
+                        </p>
+                      )}
                     </div>
                   </TableCell>
                   <TableCell>{contract.owner_name}</TableCell>
@@ -378,9 +371,9 @@ export default function ContractsPage() {
                   </TableCell>
                   <TableCell>
                     <div>
-                      <p>{contract.annual_price.toLocaleString('hr-HR')} EUR</p>
+                      <p>{contract.total_price.toLocaleString('hr-HR', { minimumFractionDigits: 2 })} EUR</p>
                       <p className="text-xs text-muted-foreground">
-                        {PAYMENT_SCHEDULE_LABELS[contract.payment_schedule] || contract.payment_schedule}
+                        {getPaymentSchedule(contract.start_date, contract.end_date)}
                       </p>
                     </div>
                   </TableCell>
@@ -391,7 +384,7 @@ export default function ContractsPage() {
                       </div>
                       <div className="h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full">
                         <div
-                          className="h-1.5 bg-green-500 rounded-full"
+                          className={`h-1.5 rounded-full ${paymentProgress >= 100 ? 'bg-green-500' : paymentProgress > 0 ? 'bg-yellow-500' : 'bg-red-500'}`}
                           style={{
                             width: `${paymentProgress}%`,
                           }}
