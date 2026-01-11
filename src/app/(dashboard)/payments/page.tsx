@@ -126,7 +126,17 @@ export default function PaymentsPage() {
         return;
       }
 
-      setBookings(data || []);
+      // Sort by berth code: first by pontoon letter (A, B, C...), then by number
+      const sortedData = (data || []).sort((a, b) => {
+        const [aPontoon, aNum] = a.berth_code.split('-');
+        const [bPontoon, bNum] = b.berth_code.split('-');
+        if (aPontoon !== bPontoon) {
+          return aPontoon.localeCompare(bPontoon);
+        }
+        return parseInt(aNum) - parseInt(bNum);
+      });
+
+      setBookings(sortedData);
     } catch (err) {
       console.error('Error:', err);
     } finally {
