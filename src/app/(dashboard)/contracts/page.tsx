@@ -117,7 +117,16 @@ export default function ContractsPage() {
           payment_status: b.payment_status,
           status: b.status === 'checked_out' ? 'expired' : 'active',
           paid_amount: b.amount_paid || 0,
-        }));
+        }))
+        // Sort by berth code: first by pontoon letter (A, B, C...), then by number
+        .sort((a, b) => {
+          const [aPontoon, aNum] = a.berth_code.split('-');
+          const [bPontoon, bNum] = b.berth_code.split('-');
+          if (aPontoon !== bPontoon) {
+            return aPontoon.localeCompare(bPontoon);
+          }
+          return parseInt(aNum) - parseInt(bNum);
+        });
 
       setContracts(transformedContracts);
     } catch (err) {
