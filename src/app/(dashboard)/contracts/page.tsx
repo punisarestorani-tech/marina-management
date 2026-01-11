@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -28,101 +28,29 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Search, Plus, FileText, Calendar, Euro, Upload, Download, Loader2, CheckCircle, File } from 'lucide-react';
+import { Search, Plus, FileText, Calendar, Euro, Upload, Download, Loader2, CheckCircle, File, RefreshCw } from 'lucide-react';
 import { format } from 'date-fns';
 import { hr } from 'date-fns/locale';
 import { getSupabaseClient } from '@/lib/supabase/client';
 
-// Contract interface
+// Contract interface matching database
 interface Contract {
   id: string;
-  berth: string;
-  vessel: string;
-  vesselName: string;
-  owner: string;
-  startDate: Date;
-  endDate: Date;
-  annualPrice: number;
-  paymentSchedule: string;
+  berth_code: string;
+  vessel_registration: string;
+  vessel_name: string;
+  owner_name: string;
+  owner_email: string | null;
+  owner_phone: string | null;
+  start_date: string;
+  end_date: string;
+  annual_price: number;
+  payment_schedule: string;
   status: string;
-  paidAmount: number;
-  totalDue: number;
-  documentUrl?: string;
+  notes: string | null;
+  paid_amount: number;
+  document_url?: string;
 }
-
-// Initial mock data
-const INITIAL_CONTRACTS: Contract[] = [
-  {
-    id: 'contract001',
-    berth: 'A-01',
-    vessel: 'HR-1234-AB',
-    vesselName: 'Sunce',
-    owner: 'Marko Marković',
-    startDate: new Date('2025-01-01'),
-    endDate: new Date('2025-12-31'),
-    annualPrice: 18000,
-    paymentSchedule: 'quarterly',
-    status: 'active',
-    paidAmount: 4500,
-    totalDue: 18000,
-  },
-  {
-    id: 'contract002',
-    berth: 'A-02',
-    vessel: 'HR-5678-CD',
-    vesselName: 'Jadran',
-    owner: 'Ivan Ivić',
-    startDate: new Date('2025-01-01'),
-    endDate: new Date('2025-12-31'),
-    annualPrice: 21600,
-    paymentSchedule: 'monthly',
-    status: 'active',
-    paidAmount: 5400,
-    totalDue: 7200,
-  },
-  {
-    id: 'contract003',
-    berth: 'B-01',
-    vessel: 'HR-3456-GH',
-    vesselName: 'Dalmacija',
-    owner: 'Ante Antić',
-    startDate: new Date('2025-01-01'),
-    endDate: new Date('2025-12-31'),
-    annualPrice: 25200,
-    paymentSchedule: 'quarterly',
-    status: 'active',
-    paidAmount: 6300,
-    totalDue: 12600,
-  },
-  {
-    id: 'contract004',
-    berth: 'C-01',
-    vessel: 'AT-6789-MN',
-    vesselName: 'Donau',
-    owner: 'Hans Mueller',
-    startDate: new Date('2025-06-01'),
-    endDate: new Date('2025-09-30'),
-    annualPrice: 12000,
-    paymentSchedule: 'upfront',
-    status: 'active',
-    paidAmount: 12000,
-    totalDue: 12000,
-  },
-  {
-    id: 'contract005',
-    berth: 'C-02',
-    vessel: 'DE-4567-QR',
-    vesselName: 'Nordsee',
-    owner: 'Klaus Schmidt',
-    startDate: new Date('2025-01-01'),
-    endDate: new Date('2025-12-31'),
-    annualPrice: 43200,
-    paymentSchedule: 'annual',
-    status: 'active',
-    paidAmount: 43200,
-    totalDue: 43200,
-  },
-];
 
 const PAYMENT_SCHEDULE_LABELS: Record<string, string> = {
   monthly: 'Mjesečno',
@@ -134,18 +62,101 @@ const PAYMENT_SCHEDULE_LABELS: Record<string, string> = {
 export default function ContractsPage() {
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
-  const [contracts, setContracts] = useState<Contract[]>(INITIAL_CONTRACTS);
+  const [contracts, setContracts] = useState<Contract[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [selectedContract, setSelectedContract] = useState<Contract | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Fetch contracts from Supabase
+  const fetchContracts = async () => {
+    setIsLoading(true);
+    try {
+      const supabase = getSupabaseClient();
+
+      // Fetch contracts with berth and vessel info
+      const { data: contractsData, error: contractsError } = await supabase
+        .from('lease_contracts')
+        .select(`
+          id,
+          owner_name,
+          owner_email,
+          owner_phone,
+          start_date,
+          end_date,
+          annual_price,
+          payment_schedule,
+          status,
+          notes,
+          berths!inner (code),
+          vessels!inner (registration_number, name)
+        `)
+        .order('start_date', { ascending: false });
+
+      if (contractsError) {
+        console.error('Error loading contracts:', contractsError);
+        return;
+      }
+
+      // Fetch payments for each contract to calculate paid amounts
+      const { data: paymentsData, error: paymentsError } = await supabase
+        .from('payments')
+        .select('contract_id, amount, status')
+        .eq('status', 'paid');
+
+      if (paymentsError) {
+        console.error('Error loading payments:', paymentsError);
+      }
+
+      // Calculate paid amounts per contract
+      const paidByContract: Record<string, number> = {};
+      if (paymentsData) {
+        paymentsData.forEach((payment) => {
+          if (!paidByContract[payment.contract_id]) {
+            paidByContract[payment.contract_id] = 0;
+          }
+          paidByContract[payment.contract_id] += payment.amount;
+        });
+      }
+
+      // Transform data
+      const transformedContracts: Contract[] = (contractsData || []).map((c: any) => ({
+        id: c.id,
+        berth_code: c.berths?.code || '',
+        vessel_registration: c.vessels?.registration_number || '',
+        vessel_name: c.vessels?.name || '',
+        owner_name: c.owner_name,
+        owner_email: c.owner_email,
+        owner_phone: c.owner_phone,
+        start_date: c.start_date,
+        end_date: c.end_date,
+        annual_price: c.annual_price,
+        payment_schedule: c.payment_schedule,
+        status: c.status,
+        notes: c.notes,
+        paid_amount: paidByContract[c.id] || 0,
+      }));
+
+      setContracts(transformedContracts);
+    } catch (err) {
+      console.error('Error:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchContracts();
+  }, []);
+
   const filteredContracts = contracts.filter((contract) => {
     const matchesSearch =
-      contract.berth.toLowerCase().includes(search.toLowerCase()) ||
-      contract.vessel.toLowerCase().includes(search.toLowerCase()) ||
-      contract.owner.toLowerCase().includes(search.toLowerCase());
+      contract.berth_code.toLowerCase().includes(search.toLowerCase()) ||
+      contract.vessel_registration.toLowerCase().includes(search.toLowerCase()) ||
+      contract.vessel_name.toLowerCase().includes(search.toLowerCase()) ||
+      contract.owner_name.toLowerCase().includes(search.toLowerCase());
     const matchesStatus = filterStatus === 'all' || contract.status === filterStatus;
     return matchesSearch && matchesStatus;
   });
@@ -165,8 +176,10 @@ export default function ContractsPage() {
     }
   };
 
-  const totalRevenue = contracts.reduce((sum, c) => sum + c.annualPrice, 0);
-  const totalPaid = contracts.reduce((sum, c) => sum + c.paidAmount, 0);
+  // Calculate totals only for active contracts
+  const activeContracts = contracts.filter(c => c.status === 'active');
+  const totalRevenue = activeContracts.reduce((sum, c) => sum + c.annual_price, 0);
+  const totalPaid = contracts.reduce((sum, c) => sum + c.paid_amount, 0);
 
   const handleOpenUploadDialog = (contract: Contract) => {
     setSelectedContract(contract);
@@ -197,7 +210,7 @@ export default function ContractsPage() {
 
       setContracts(prev => prev.map(c =>
         c.id === selectedContract.id
-          ? { ...c, documentUrl: publicUrl }
+          ? { ...c, document_url: publicUrl }
           : c
       ));
 
@@ -226,12 +239,18 @@ export default function ContractsPage() {
             Upravljanje ugovorima o zakupu vezova
           </p>
         </div>
-        <Button asChild>
-          <Link href="/contracts/new">
-            <Plus className="mr-2 h-4 w-4" />
-            Novi ugovor
-          </Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={fetchContracts} disabled={isLoading}>
+            <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+            Osvježi
+          </Button>
+          <Button asChild>
+            <Link href="/contracts/new">
+              <Plus className="mr-2 h-4 w-4" />
+              Novi ugovor
+            </Link>
+          </Button>
+        </div>
       </div>
 
       {/* Summary cards */}
@@ -241,7 +260,7 @@ export default function ContractsPage() {
             <CardTitle className="text-sm font-medium">Ukupno ugovora</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{contracts.length}</div>
+            <div className="text-2xl font-bold">{activeContracts.length}</div>
             <p className="text-xs text-muted-foreground">aktivnih ugovora</p>
           </CardContent>
         </Card>
@@ -252,7 +271,7 @@ export default function ContractsPage() {
           <CardContent>
             <div className="text-2xl font-bold flex items-center gap-1">
               <Euro className="h-5 w-5" />
-              {totalRevenue.toLocaleString()}
+              {totalRevenue.toLocaleString('hr-HR')}
             </div>
             <p className="text-xs text-muted-foreground">planirani prihod</p>
           </CardContent>
@@ -264,10 +283,10 @@ export default function ContractsPage() {
           <CardContent>
             <div className="text-2xl font-bold flex items-center gap-1">
               <Euro className="h-5 w-5" />
-              {totalPaid.toLocaleString()}
+              {totalPaid.toLocaleString('hr-HR')}
             </div>
             <p className="text-xs text-muted-foreground">
-              {Math.round((totalPaid / totalRevenue) * 100)}% od ukupnog
+              {totalRevenue > 0 ? Math.round((totalPaid / totalRevenue) * 100) : 0}% od ukupnog
             </p>
           </CardContent>
         </Card>
@@ -310,6 +329,16 @@ export default function ContractsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {isLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : contracts.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <FileText className="h-10 w-10 mx-auto mb-2 opacity-50" />
+              <p>Nema ugovora za prikaz</p>
+            </div>
+          ) : (
           <Table>
             <TableHeader>
               <TableRow>
@@ -324,43 +353,47 @@ export default function ContractsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredContracts.map((contract) => (
+              {filteredContracts.map((contract) => {
+                const paymentProgress = contract.annual_price > 0
+                  ? Math.min(100, Math.round((contract.paid_amount / contract.annual_price) * 100))
+                  : 0;
+                return (
                 <TableRow key={contract.id}>
-                  <TableCell className="font-medium">{contract.berth}</TableCell>
+                  <TableCell className="font-medium">{contract.berth_code}</TableCell>
                   <TableCell>
                     <div>
-                      <p>{contract.vessel}</p>
+                      <p>{contract.vessel_registration}</p>
                       <p className="text-xs text-muted-foreground">
-                        {contract.vesselName}
+                        {contract.vessel_name}
                       </p>
                     </div>
                   </TableCell>
-                  <TableCell>{contract.owner}</TableCell>
+                  <TableCell>{contract.owner_name}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1 text-sm">
                       <Calendar className="h-4 w-4 text-muted-foreground" />
-                      {format(contract.startDate, 'dd.MM.yy', { locale: hr })} -{' '}
-                      {format(contract.endDate, 'dd.MM.yy', { locale: hr })}
+                      {format(new Date(contract.start_date), 'dd.MM.yy', { locale: hr })} -{' '}
+                      {format(new Date(contract.end_date), 'dd.MM.yy', { locale: hr })}
                     </div>
                   </TableCell>
                   <TableCell>
                     <div>
-                      <p>{contract.annualPrice.toLocaleString()} EUR</p>
+                      <p>{contract.annual_price.toLocaleString('hr-HR')} EUR</p>
                       <p className="text-xs text-muted-foreground">
-                        {PAYMENT_SCHEDULE_LABELS[contract.paymentSchedule]}
+                        {PAYMENT_SCHEDULE_LABELS[contract.payment_schedule] || contract.payment_schedule}
                       </p>
                     </div>
                   </TableCell>
                   <TableCell>
                     <div className="w-20">
                       <div className="flex items-center justify-between text-xs mb-1">
-                        <span>{Math.round((contract.paidAmount / contract.totalDue) * 100)}%</span>
+                        <span>{paymentProgress}%</span>
                       </div>
                       <div className="h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full">
                         <div
                           className="h-1.5 bg-green-500 rounded-full"
                           style={{
-                            width: `${(contract.paidAmount / contract.totalDue) * 100}%`,
+                            width: `${paymentProgress}%`,
                           }}
                         />
                       </div>
@@ -369,14 +402,14 @@ export default function ContractsPage() {
                   <TableCell>{getStatusBadge(contract.status)}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1">
-                      {contract.documentUrl ? (
+                      {contract.document_url ? (
                         <Button
                           variant="ghost"
                           size="sm"
                           asChild
                           title="Preuzmi dokument"
                         >
-                          <a href={contract.documentUrl} target="_blank" rel="noopener noreferrer">
+                          <a href={contract.document_url} target="_blank" rel="noopener noreferrer">
                             <Download className="h-4 w-4 text-green-600" />
                           </a>
                         </Button>
@@ -398,9 +431,10 @@ export default function ContractsPage() {
                     </div>
                   </TableCell>
                 </TableRow>
-              ))}
+              )})}
             </TableBody>
           </Table>
+          )}
         </CardContent>
       </Card>
 
@@ -411,7 +445,7 @@ export default function ContractsPage() {
             <DialogTitle>Učitaj dokument ugovora</DialogTitle>
             <DialogDescription>
               {selectedContract && (
-                <>Ugovor za vez {selectedContract.berth} - {selectedContract.owner}</>
+                <>Ugovor za vez {selectedContract.berth_code} - {selectedContract.owner_name}</>
               )}
             </DialogDescription>
           </DialogHeader>
