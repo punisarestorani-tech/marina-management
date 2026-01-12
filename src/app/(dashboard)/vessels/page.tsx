@@ -22,7 +22,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { Search, Ship, Anchor, Pencil, Loader2, User, Calendar } from 'lucide-react';
+import { Search, Ship, Anchor, Pencil, Loader2, User, Calendar, FileText, AlertTriangle } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { hasPermission } from '@/lib/auth/rbac';
 import { getSupabaseClient } from '@/lib/supabase/client';
@@ -168,6 +168,42 @@ export default function VesselsPage() {
     }
   };
 
+  // Calculate stay duration and determine contract status
+  const getContractStatus = (checkIn: string, checkOut: string) => {
+    const start = new Date(checkIn);
+    const end = new Date(checkOut);
+    const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+    return {
+      hasContract: days >= 30,
+      days,
+      type: days >= 300 ? 'Godišnji' : days >= 90 ? 'Sezonski' : days >= 30 ? 'Mjesečni' : 'Kratkoročni'
+    };
+  };
+
+  const getContractBadge = (checkIn: string, checkOut: string) => {
+    const { hasContract, days, type } = getContractStatus(checkIn, checkOut);
+    if (hasContract) {
+      return (
+        <div className="flex flex-col gap-1">
+          <Badge className="bg-green-500 gap-1">
+            <FileText className="h-3 w-3" />
+            Ima ugovor
+          </Badge>
+          <span className="text-xs text-muted-foreground">{type} ({days} dana)</span>
+        </div>
+      );
+    }
+    return (
+      <div className="flex flex-col gap-1">
+        <Badge variant="destructive" className="gap-1">
+          <AlertTriangle className="h-3 w-3" />
+          Nema ugovor
+        </Badge>
+        <span className="text-xs text-muted-foreground">Kratkoročni ({days} dana)</span>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -222,6 +258,7 @@ export default function VesselsPage() {
                   <TableHead>Registracija</TableHead>
                   <TableHead>Duzina</TableHead>
                   <TableHead>Gost</TableHead>
+                  <TableHead>Ugovor</TableHead>
                   <TableHead>Status</TableHead>
                   {canEdit && <TableHead className="text-right">Akcije</TableHead>}
                 </TableRow>
@@ -252,6 +289,9 @@ export default function VesselsPage() {
                         <User className="h-4 w-4 text-muted-foreground" />
                         {vessel.guest_name}
                       </div>
+                    </TableCell>
+                    <TableCell>
+                      {getContractBadge(vessel.check_in_date, vessel.check_out_date)}
                     </TableCell>
                     <TableCell>
                       {getStatusBadge(vessel.status)}
