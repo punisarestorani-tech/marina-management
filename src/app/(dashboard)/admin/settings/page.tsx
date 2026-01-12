@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -17,17 +17,71 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Save, Plus, Anchor, MapPin, Settings as SettingsIcon } from 'lucide-react';
+import { Save, Plus, Anchor, MapPin, Settings as SettingsIcon, Loader2, RefreshCw } from 'lucide-react';
+import { getSupabaseClient } from '@/lib/supabase/client';
 
-// Mock data
-const PONTOONS = [
-  { id: 'p001', code: 'A', name: 'Ponton A', berthCount: 10, isActive: true },
-  { id: 'p002', code: 'B', name: 'Ponton B', berthCount: 10, isActive: true },
-  { id: 'p003', code: 'C', name: 'Ponton C', berthCount: 10, isActive: true },
-];
+interface Pontoon {
+  id: string;
+  code: string;
+  name: string;
+  berthCount: number;
+  isActive: boolean;
+}
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState('general');
+  const [pontoons, setPontoons] = useState<Pontoon[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Fetch pontoons from Supabase
+  const fetchPontoons = async () => {
+    setIsLoading(true);
+    try {
+      const supabase = getSupabaseClient();
+
+      // Fetch pontoons
+      const { data: pontoonsData, error: pontoonsError } = await supabase
+        .from('pontoons')
+        .select('id, code, name, status')
+        .order('code', { ascending: true });
+
+      if (pontoonsError) {
+        console.error('Error loading pontoons:', pontoonsError);
+        return;
+      }
+
+      // Fetch berth counts for each pontoon
+      const pontoonsWithCounts: Pontoon[] = [];
+
+      for (const pontoon of pontoonsData || []) {
+        const { count } = await supabase
+          .from('berths')
+          .select('id', { count: 'exact', head: true })
+          .eq('pontoon_id', pontoon.id);
+
+        pontoonsWithCounts.push({
+          id: pontoon.id,
+          code: pontoon.code,
+          name: pontoon.name,
+          berthCount: count || 0,
+          isActive: pontoon.status === 'active',
+        });
+      }
+
+      setPontoons(pontoonsWithCounts);
+    } catch (err) {
+      console.error('Error:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPontoons();
+  }, []);
+
+  // Calculate total berths
+  const totalBerths = pontoons.reduce((sum, p) => sum + p.berthCount, 0);
 
   return (
     <div className="space-y-6">
@@ -60,11 +114,11 @@ export default function SettingsPage() {
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="marinaName">Naziv marine</Label>
-                  <Input id="marinaName" defaultValue="Marina Morsko Dobro" />
+                  <Input id="marinaName" defaultValue="Marina Budva" />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="marinaCode">Šifra</Label>
-                  <Input id="marinaCode" defaultValue="MRD-001" />
+                  <Input id="marinaCode" defaultValue="MRN-BDV" />
                 </div>
               </div>
 
@@ -84,7 +138,7 @@ export default function SettingsPage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
-                  <Input id="email" type="email" defaultValue="info@marina.me" />
+                  <Input id="email" type="email" defaultValue="info@marina-budva.me" />
                 </div>
               </div>
 
@@ -93,11 +147,11 @@ export default function SettingsPage() {
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="lat">Geografska širina</Label>
-                  <Input id="lat" defaultValue="43.5081" />
+                  <Input id="lat" defaultValue="42.2864" />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="lng">Geografska dužina</Label>
-                  <Input id="lng" defaultValue="16.4402" />
+                  <Input id="lng" defaultValue="18.8400" />
                 </div>
               </div>
 
@@ -121,53 +175,70 @@ export default function SettingsPage() {
                     Pontoni
                   </CardTitle>
                   <CardDescription>
-                    Upravljanje pontonima i vezovima
+                    Upravljanje pontonima i vezovima ({pontoons.length} pontona, {totalBerths} vezova ukupno)
                   </CardDescription>
                 </div>
-                <Button>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Novi ponton
-                </Button>
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={fetchPontoons} disabled={isLoading}>
+                    <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+                    Osvježi
+                  </Button>
+                  <Button>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Novi ponton
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Kod</TableHead>
-                    <TableHead>Naziv</TableHead>
-                    <TableHead>Broj vezova</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Akcije</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {PONTOONS.map((pontoon) => (
-                    <TableRow key={pontoon.id}>
-                      <TableCell className="font-medium">{pontoon.code}</TableCell>
-                      <TableCell>{pontoon.name}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          <Anchor className="h-4 w-4 text-muted-foreground" />
-                          {pontoon.berthCount}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {pontoon.isActive ? (
-                          <Badge className="bg-green-500">Aktivan</Badge>
-                        ) : (
-                          <Badge variant="secondary">Neaktivan</Badge>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button variant="ghost" size="sm">
-                          Uredi
-                        </Button>
-                      </TableCell>
+              {isLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : pontoons.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <MapPin className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                  <p>Nema pontona u bazi</p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Kod</TableHead>
+                      <TableHead>Naziv</TableHead>
+                      <TableHead>Broj vezova</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Akcije</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {pontoons.map((pontoon) => (
+                      <TableRow key={pontoon.id}>
+                        <TableCell className="font-medium">{pontoon.code}</TableCell>
+                        <TableCell>{pontoon.name}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            <Anchor className="h-4 w-4 text-muted-foreground" />
+                            {pontoon.berthCount}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {pontoon.isActive ? (
+                            <Badge className="bg-green-500">Aktivan</Badge>
+                          ) : (
+                            <Badge variant="secondary">Neaktivan</Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button variant="ghost" size="sm">
+                            Uredi
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
 
