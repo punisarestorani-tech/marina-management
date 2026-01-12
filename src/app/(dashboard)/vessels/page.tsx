@@ -169,38 +169,25 @@ export default function VesselsPage() {
   };
 
   // Calculate stay duration and determine contract status
-  const getContractStatus = (checkIn: string, checkOut: string) => {
+  const getContractBadge = (checkIn: string, checkOut: string) => {
     const start = new Date(checkIn);
     const end = new Date(checkOut);
     const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-    return {
-      hasContract: days >= 30,
-      days,
-      type: days >= 300 ? 'Godišnji' : days >= 90 ? 'Sezonski' : days >= 30 ? 'Mjesečni' : 'Kratkoročni'
-    };
-  };
+    const hasContract = days >= 30;
 
-  const getContractBadge = (checkIn: string, checkOut: string) => {
-    const { hasContract, days, type } = getContractStatus(checkIn, checkOut);
     if (hasContract) {
       return (
-        <div className="flex flex-col gap-1">
-          <Badge className="bg-green-500 gap-1">
-            <FileText className="h-3 w-3" />
-            Ima ugovor
-          </Badge>
-          <span className="text-xs text-muted-foreground">{type} ({days} dana)</span>
-        </div>
+        <Badge className="bg-green-500 gap-1">
+          <FileText className="h-3 w-3" />
+          Ima ugovor
+        </Badge>
       );
     }
     return (
-      <div className="flex flex-col gap-1">
-        <Badge variant="destructive" className="gap-1">
-          <AlertTriangle className="h-3 w-3" />
-          Nema ugovor
-        </Badge>
-        <span className="text-xs text-muted-foreground">Kratkoročni ({days} dana)</span>
-      </div>
+      <Badge variant="destructive" className="gap-1">
+        <AlertTriangle className="h-3 w-3" />
+        Nema ugovor
+      </Badge>
     );
   };
 
