@@ -83,11 +83,11 @@ export default function DashboardPage() {
         const occupiedBerths = currentBookings?.length || 0;
         const freeBerths = totalBerths - occupiedBerths;
 
-        // Fetch active contracts
+        // Fetch active contracts (all bookings count as contracts)
         const { data: contracts } = await supabase
-          .from('lease_contracts')
+          .from('berth_bookings')
           .select('id')
-          .eq('status', 'active');
+          .in('status', ['confirmed', 'checked_in', 'pending']);
 
         const activeContracts = contracts?.length || 0;
 

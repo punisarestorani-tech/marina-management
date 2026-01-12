@@ -82,7 +82,7 @@ export default function ContractsPage() {
     try {
       const supabase = getSupabaseClient();
 
-      // 1. Fetch bookings as contracts - only long-term ones (more than 30 days)
+      // 1. Fetch bookings as contracts (all bookings are contracts)
       const { data: bookingsData, error: bookingsError } = await supabase
         .from('berth_bookings')
         .select(`
@@ -128,14 +128,8 @@ export default function ContractsPage() {
         console.error('Error loading occupancy:', occupancyError);
       }
 
-      // Transform bookings to contract format
+      // Transform bookings to contract format (all bookings are contracts)
       const bookingContracts: Contract[] = (bookingsData || [])
-        .filter((b: any) => {
-          const checkIn = new Date(b.check_in_date);
-          const checkOut = new Date(b.check_out_date);
-          const days = Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24));
-          return days >= 30; // Only show bookings >= 30 days as contracts
-        })
         .map((b: any) => {
           const isExpired = b.status === 'checked_out';
           const status = getContractStatus(b.total_amount, b.amount_paid || 0, isExpired);
