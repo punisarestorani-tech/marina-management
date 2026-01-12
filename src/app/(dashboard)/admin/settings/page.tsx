@@ -42,7 +42,7 @@ export default function SettingsPage() {
       // Fetch pontoons
       const { data: pontoonsData, error: pontoonsError } = await supabase
         .from('pontoons')
-        .select('id, code, name, status')
+        .select('id, code, name, is_active')
         .order('code', { ascending: true });
 
       if (pontoonsError) {
@@ -64,7 +64,7 @@ export default function SettingsPage() {
           code: pontoon.code,
           name: pontoon.name,
           berthCount: count || 0,
-          isActive: pontoon.status === 'active',
+          isActive: pontoon.is_active === true,
         });
       }
 
