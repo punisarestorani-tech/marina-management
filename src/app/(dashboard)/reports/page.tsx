@@ -1,193 +1,159 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Download,
-  Calendar,
   Ship,
   Euro,
-  TrendingUp,
-  TrendingDown,
   Users,
   Clock,
-  FileText,
-  Printer,
+  Loader2,
+  RefreshCw,
+  Anchor,
 } from 'lucide-react';
-import { format, subDays, addDays, eachDayOfInterval, startOfMonth, endOfMonth } from 'date-fns';
+import { format, subDays, eachDayOfInterval } from 'date-fns';
 import { hr } from 'date-fns/locale';
-import {
-  Booking,
-  BOOKING_STATUS_COLORS,
-  PAYMENT_STATUS_COLORS,
-  formatDate,
-  formatCurrency,
-} from '@/types/booking.types';
+import { getSupabaseClient } from '@/lib/supabase/client';
 
-// Demo booking data for reports
-const DEMO_BOOKINGS: Booking[] = [
-  {
-    id: '1',
-    berthId: 'b1',
-    berthCode: 'A-01',
-    checkInDate: '2026-01-02',
-    checkOutDate: '2026-01-05',
-    guestName: 'Marco Rossi',
-    guestCountry: 'Italija',
-    vesselName: 'Bella Mare',
-    status: 'checked_in',
-    pricePerDay: 50,
-    totalNights: 3,
-    subtotal: 150,
-    discountPercent: 0,
-    discountAmount: 0,
-    taxPercent: 13,
-    taxAmount: 19.5,
-    totalAmount: 169.5,
-    paymentStatus: 'paid',
-    amountPaid: 169.5,
-    source: 'online',
-    createdAt: '2025-12-15T10:00:00Z',
-    updatedAt: '2026-01-02T14:00:00Z',
-  },
-  {
-    id: '2',
-    berthId: 'b2',
-    berthCode: 'A-02',
-    checkInDate: '2026-01-01',
-    checkOutDate: '2026-01-04',
-    guestName: 'Hans Mueller',
-    guestCountry: 'Njemačka',
-    vesselName: 'Seestern',
-    status: 'checked_out',
-    pricePerDay: 55,
-    totalNights: 3,
-    subtotal: 165,
-    discountPercent: 0,
-    discountAmount: 0,
-    taxPercent: 13,
-    taxAmount: 21.45,
-    totalAmount: 186.45,
-    paymentStatus: 'paid',
-    amountPaid: 186.45,
-    source: 'phone',
-    createdAt: '2025-12-20T15:00:00Z',
-    updatedAt: '2026-01-04T10:00:00Z',
-  },
-  {
-    id: '3',
-    berthId: 'b4',
-    berthCode: 'B-01',
-    checkInDate: '2026-01-01',
-    checkOutDate: '2026-01-08',
-    guestName: 'Jean Dupont',
-    guestCountry: 'Francuska',
-    vesselName: 'Liberté',
-    status: 'checked_in',
-    pricePerDay: 70,
-    totalNights: 7,
-    subtotal: 490,
-    discountPercent: 10,
-    discountAmount: 49,
-    taxPercent: 13,
-    taxAmount: 57.33,
-    totalAmount: 498.33,
-    paymentStatus: 'partial',
-    amountPaid: 200,
-    source: 'email',
-    createdAt: '2025-12-28T09:00:00Z',
-    updatedAt: '2026-01-01T12:00:00Z',
-  },
-  {
-    id: '4',
-    berthId: 'b3',
-    berthCode: 'A-03',
-    checkInDate: '2026-01-05',
-    checkOutDate: '2026-01-10',
-    guestName: 'John Smith',
-    guestCountry: 'UK',
-    vesselName: 'Sea Dream',
-    status: 'confirmed',
-    pricePerDay: 60,
-    totalNights: 5,
-    subtotal: 300,
-    discountPercent: 0,
-    discountAmount: 0,
-    taxPercent: 13,
-    taxAmount: 39,
-    totalAmount: 339,
-    paymentStatus: 'unpaid',
-    amountPaid: 0,
-    source: 'online',
-    createdAt: '2025-12-30T11:00:00Z',
-    updatedAt: '2025-12-30T11:00:00Z',
-  },
-];
+interface BookingData {
+  id: string;
+  berth_code: string;
+  guest_name: string;
+  guest_email: string | null;
+  guest_phone: string | null;
+  vessel_name: string | null;
+  vessel_registration: string | null;
+  check_in_date: string;
+  check_out_date: string;
+  total_amount: number;
+  amount_paid: number;
+  payment_status: string;
+  status: string;
+}
 
-// Generate daily occupancy data
-const generateOccupancyData = () => {
-  return eachDayOfInterval({
-    start: subDays(new Date(), 6),
-    end: new Date(),
-  }).map((date) => ({
-    date,
-    occupied: Math.floor(Math.random() * 8) + 5,
-    reserved: Math.floor(Math.random() * 3) + 1,
-    free: Math.floor(Math.random() * 5) + 2,
-    revenue: Math.floor(Math.random() * 500) + 200,
-  }));
-};
-
-const DAILY_DATA = generateOccupancyData();
+interface OccupancyData {
+  date: string;
+  occupied: number;
+  reserved: number;
+  free: number;
+}
 
 export default function ReportsPage() {
   const [activeTab, setActiveTab] = useState('daily');
   const [reportDate, setReportDate] = useState(new Date().toISOString().split('T')[0]);
+  const [bookings, setBookings] = useState<BookingData[]>([]);
+  const [occupancyData, setOccupancyData] = useState<OccupancyData[]>([]);
+  const [totalBerths, setTotalBerths] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Calculate stats
+  // Fetch all data
+  const fetchData = async () => {
+    setIsLoading(true);
+    try {
+      const supabase = getSupabaseClient();
+
+      // Fetch bookings
+      const { data: bookingsData, error: bookingsError } = await supabase
+        .from('berth_bookings')
+        .select('id, berth_code, guest_name, guest_email, guest_phone, vessel_name, vessel_registration, check_in_date, check_out_date, total_amount, amount_paid, payment_status, status')
+        .in('status', ['confirmed', 'checked_in', 'pending', 'checked_out'])
+        .order('check_in_date', { ascending: false });
+
+      if (bookingsError) {
+        console.error('Error loading bookings:', bookingsError);
+      } else {
+        setBookings(bookingsData || []);
+      }
+
+      // Fetch total berths count
+      const { count: berthCount } = await supabase
+        .from('berths')
+        .select('id', { count: 'exact', head: true });
+
+      setTotalBerths(berthCount || 0);
+
+      // Fetch daily occupancy for last 7 days
+      const last7Days = eachDayOfInterval({
+        start: subDays(new Date(), 6),
+        end: new Date(),
+      });
+
+      const occupancyResults: OccupancyData[] = [];
+
+      for (const day of last7Days) {
+        const dateStr = day.toISOString().split('T')[0];
+
+        // Count occupied berths for this day
+        const { data: dayOccupancy } = await supabase
+          .from('daily_occupancy')
+          .select('status')
+          .eq('date', dateStr);
+
+        const occupied = dayOccupancy?.filter(o => o.status === 'occupied').length || 0;
+        const reserved = dayOccupancy?.filter(o => o.status === 'reserved').length || 0;
+        const free = (berthCount || 0) - occupied - reserved;
+
+        occupancyResults.push({
+          date: dateStr,
+          occupied,
+          reserved,
+          free: Math.max(0, free),
+        });
+      }
+
+      setOccupancyData(occupancyResults);
+    } catch (err) {
+      console.error('Error:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  // Calculate stats from real data
   const stats = useMemo(() => {
     const today = new Date().toISOString().split('T')[0];
 
-    const todaysArrivals = DEMO_BOOKINGS.filter(
-      (b) => b.checkInDate === today && ['confirmed', 'pending'].includes(b.status)
+    const todaysArrivals = bookings.filter(
+      (b) => b.check_in_date === today && ['confirmed', 'pending'].includes(b.status)
     );
-    const todaysDepartures = DEMO_BOOKINGS.filter(
-      (b) => b.checkOutDate === today && b.status === 'checked_in'
+    const todaysDepartures = bookings.filter(
+      (b) => b.check_out_date === today && b.status === 'checked_in'
     );
-    const currentGuests = DEMO_BOOKINGS.filter((b) => b.status === 'checked_in');
-    const pendingPayments = DEMO_BOOKINGS.filter(
-      (b) => b.paymentStatus !== 'paid' && !['cancelled', 'no_show'].includes(b.status)
+    const currentGuests = bookings.filter((b) => {
+      const checkIn = b.check_in_date;
+      const checkOut = b.check_out_date;
+      return b.status === 'checked_in' ||
+        (checkIn <= today && checkOut >= today && ['confirmed', 'checked_in'].includes(b.status));
+    });
+    const pendingPayments = bookings.filter(
+      (b) => b.payment_status !== 'paid' && !['cancelled', 'no_show', 'checked_out'].includes(b.status)
     );
 
-    const totalRevenue = DEMO_BOOKINGS
+    const totalRevenue = bookings
       .filter((b) => !['cancelled', 'no_show'].includes(b.status))
-      .reduce((sum, b) => sum + b.totalAmount, 0);
+      .reduce((sum, b) => sum + (b.total_amount || 0), 0);
 
-    const collectedRevenue = DEMO_BOOKINGS
+    const collectedRevenue = bookings
       .filter((b) => !['cancelled', 'no_show'].includes(b.status))
-      .reduce((sum, b) => sum + b.amountPaid, 0);
+      .reduce((sum, b) => sum + (b.amount_paid || 0), 0);
 
     const outstandingAmount = totalRevenue - collectedRevenue;
 
-    // Occupancy by country
-    const byCountry = DEMO_BOOKINGS.reduce((acc, b) => {
-      const country = b.guestCountry || 'Nepoznato';
-      if (!acc[country]) acc[country] = { count: 0, revenue: 0 };
-      acc[country].count++;
-      acc[country].revenue += b.totalAmount;
-      return acc;
-    }, {} as Record<string, { count: number; revenue: number }>);
-
     // Revenue by berth
-    const byBerth = DEMO_BOOKINGS.reduce((acc, b) => {
-      if (!acc[b.berthCode]) acc[b.berthCode] = { bookings: 0, nights: 0, revenue: 0 };
-      acc[b.berthCode].bookings++;
-      acc[b.berthCode].nights += b.totalNights;
-      acc[b.berthCode].revenue += b.totalAmount;
+    const byBerth = bookings.reduce((acc, b) => {
+      if (!acc[b.berth_code]) acc[b.berth_code] = { bookings: 0, revenue: 0, paid: 0 };
+      acc[b.berth_code].bookings++;
+      acc[b.berth_code].revenue += b.total_amount || 0;
+      acc[b.berth_code].paid += b.amount_paid || 0;
       return acc;
-    }, {} as Record<string, { bookings: number; nights: number; revenue: number }>);
+    }, {} as Record<string, { bookings: number; revenue: number; paid: number }>);
 
     return {
       todaysArrivals,
@@ -197,14 +163,35 @@ export default function ReportsPage() {
       totalRevenue,
       collectedRevenue,
       outstandingAmount,
-      byCountry,
       byBerth,
     };
-  }, []);
+  }, [bookings]);
 
-  const todayData = DAILY_DATA[DAILY_DATA.length - 1];
-  const yesterdayData = DAILY_DATA[DAILY_DATA.length - 2];
-  const occupancyChange = todayData.occupied - yesterdayData.occupied;
+  const formatCurrency = (amount: number) => {
+    return amount.toLocaleString('hr-HR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' EUR';
+  };
+
+  const formatDate = (dateStr: string) => {
+    return format(new Date(dateStr), 'dd.MM.yyyy', { locale: hr });
+  };
+
+  const getPaymentBadge = (status: string, paid: number, total: number) => {
+    if (status === 'paid' || paid >= total) {
+      return <span className="px-2 py-1 rounded text-xs bg-green-100 text-green-800">Plaćeno</span>;
+    }
+    if (status === 'partial' || paid > 0) {
+      return <span className="px-2 py-1 rounded text-xs bg-yellow-100 text-yellow-800">Djelimično</span>;
+    }
+    return <span className="px-2 py-1 rounded text-xs bg-red-100 text-red-800">Neplaćeno</span>;
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -217,9 +204,9 @@ export default function ReportsPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline">
-            <Printer className="mr-2 h-4 w-4" />
-            Printaj
+          <Button variant="outline" onClick={fetchData} disabled={isLoading}>
+            <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+            Osvježi
           </Button>
           <Button variant="outline">
             <Download className="mr-2 h-4 w-4" />
@@ -266,7 +253,7 @@ export default function ReportsPage() {
           <CardContent>
             <div className="text-2xl font-bold">{stats.currentGuests.length}</div>
             <p className="text-xs text-muted-foreground">
-              prijavljeno
+              na vezovima
             </p>
           </CardContent>
         </Card>
@@ -293,7 +280,6 @@ export default function ReportsPage() {
           <TabsTrigger value="daily">Dnevni izvještaj</TabsTrigger>
           <TabsTrigger value="occupancy">Zauzetost</TabsTrigger>
           <TabsTrigger value="revenue">Prihodi</TabsTrigger>
-          <TabsTrigger value="guests">Gosti po zemljama</TabsTrigger>
         </TabsList>
 
         {/* Daily Report */}
@@ -314,7 +300,7 @@ export default function ReportsPage() {
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
                   <Users className="w-5 h-5 text-green-500" />
-                  Dolasci
+                  Dolasci ({stats.todaysArrivals.length})
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -323,20 +309,12 @@ export default function ReportsPage() {
                     {stats.todaysArrivals.map((booking) => (
                       <div key={booking.id} className="flex items-center justify-between p-2 bg-green-50 dark:bg-green-900/20 rounded">
                         <div>
-                          <p className="font-medium">{booking.guestName}</p>
+                          <p className="font-medium">{booking.guest_name}</p>
                           <p className="text-sm text-muted-foreground">
-                            {booking.vesselName} • {booking.berthCode}
+                            {booking.vessel_name || booking.vessel_registration || 'N/A'} • {booking.berth_code}
                           </p>
                         </div>
-                        <span
-                          className="px-2 py-1 rounded text-xs"
-                          style={{
-                            backgroundColor: PAYMENT_STATUS_COLORS[booking.paymentStatus].bg,
-                            color: PAYMENT_STATUS_COLORS[booking.paymentStatus].text,
-                          }}
-                        >
-                          {PAYMENT_STATUS_COLORS[booking.paymentStatus].label}
-                        </span>
+                        {getPaymentBadge(booking.payment_status, booking.amount_paid, booking.total_amount)}
                       </div>
                     ))}
                   </div>
@@ -351,7 +329,7 @@ export default function ReportsPage() {
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
                   <Clock className="w-5 h-5 text-red-500" />
-                  Odlasci
+                  Odlasci ({stats.todaysDepartures.length})
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -360,20 +338,12 @@ export default function ReportsPage() {
                     {stats.todaysDepartures.map((booking) => (
                       <div key={booking.id} className="flex items-center justify-between p-2 bg-red-50 dark:bg-red-900/20 rounded">
                         <div>
-                          <p className="font-medium">{booking.guestName}</p>
+                          <p className="font-medium">{booking.guest_name}</p>
                           <p className="text-sm text-muted-foreground">
-                            {booking.vesselName} • {booking.berthCode}
+                            {booking.vessel_name || booking.vessel_registration || 'N/A'} • {booking.berth_code}
                           </p>
                         </div>
-                        <span
-                          className="px-2 py-1 rounded text-xs"
-                          style={{
-                            backgroundColor: PAYMENT_STATUS_COLORS[booking.paymentStatus].bg,
-                            color: PAYMENT_STATUS_COLORS[booking.paymentStatus].text,
-                          }}
-                        >
-                          {PAYMENT_STATUS_COLORS[booking.paymentStatus].label}
-                        </span>
+                        {getPaymentBadge(booking.payment_status, booking.amount_paid, booking.total_amount)}
                       </div>
                     ))}
                   </div>
@@ -393,42 +363,55 @@ export default function ReportsPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50 dark:bg-gray-800">
-                    <tr>
-                      <th className="px-3 py-2 text-left text-sm font-medium">Vez</th>
-                      <th className="px-3 py-2 text-left text-sm font-medium">Gost</th>
-                      <th className="px-3 py-2 text-left text-sm font-medium">Plovilo</th>
-                      <th className="px-3 py-2 text-left text-sm font-medium">Država</th>
-                      <th className="px-3 py-2 text-left text-sm font-medium">Odlazak</th>
-                      <th className="px-3 py-2 text-right text-sm font-medium">Plaćanje</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y">
-                    {stats.currentGuests.map((booking) => (
-                      <tr key={booking.id}>
-                        <td className="px-3 py-2 font-medium">{booking.berthCode}</td>
-                        <td className="px-3 py-2">{booking.guestName}</td>
-                        <td className="px-3 py-2">{booking.vesselName}</td>
-                        <td className="px-3 py-2">{booking.guestCountry}</td>
-                        <td className="px-3 py-2">{formatDate(booking.checkOutDate)}</td>
-                        <td className="px-3 py-2 text-right">
-                          <span
-                            className="px-2 py-1 rounded text-xs"
-                            style={{
-                              backgroundColor: PAYMENT_STATUS_COLORS[booking.paymentStatus].bg,
-                              color: PAYMENT_STATUS_COLORS[booking.paymentStatus].text,
-                            }}
-                          >
-                            {formatCurrency(booking.amountPaid)} / {formatCurrency(booking.totalAmount)}
-                          </span>
-                        </td>
+              {stats.currentGuests.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-50 dark:bg-gray-800">
+                      <tr>
+                        <th className="px-3 py-2 text-left text-sm font-medium">Vez</th>
+                        <th className="px-3 py-2 text-left text-sm font-medium">Gost</th>
+                        <th className="px-3 py-2 text-left text-sm font-medium">Plovilo</th>
+                        <th className="px-3 py-2 text-left text-sm font-medium">Dolazak</th>
+                        <th className="px-3 py-2 text-left text-sm font-medium">Odlazak</th>
+                        <th className="px-3 py-2 text-right text-sm font-medium">Plaćanje</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody className="divide-y">
+                      {stats.currentGuests
+                        .sort((a, b) => {
+                          const [aPontoon, aNum] = a.berth_code.split('-');
+                          const [bPontoon, bNum] = b.berth_code.split('-');
+                          if (aPontoon !== bPontoon) return aPontoon.localeCompare(bPontoon);
+                          return parseInt(aNum) - parseInt(bNum);
+                        })
+                        .map((booking) => (
+                          <tr key={booking.id}>
+                            <td className="px-3 py-2">
+                              <div className="flex items-center gap-2">
+                                <Anchor className="h-4 w-4 text-blue-500" />
+                                <span className="font-medium">{booking.berth_code}</span>
+                              </div>
+                            </td>
+                            <td className="px-3 py-2">{booking.guest_name}</td>
+                            <td className="px-3 py-2">{booking.vessel_name || booking.vessel_registration || '-'}</td>
+                            <td className="px-3 py-2">{formatDate(booking.check_in_date)}</td>
+                            <td className="px-3 py-2">{formatDate(booking.check_out_date)}</td>
+                            <td className="px-3 py-2 text-right">
+                              <div className="flex flex-col items-end gap-1">
+                                {getPaymentBadge(booking.payment_status, booking.amount_paid, booking.total_amount)}
+                                <span className="text-xs text-muted-foreground">
+                                  {formatCurrency(booking.amount_paid)} / {formatCurrency(booking.total_amount)}
+                                </span>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="text-muted-foreground text-center py-4">Nema gostiju trenutno na vezovima</p>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -438,46 +421,57 @@ export default function ReportsPage() {
           <Card>
             <CardHeader>
               <CardTitle>Zauzetost po danima</CardTitle>
-              <CardDescription>Zadnjih 7 dana</CardDescription>
+              <CardDescription>Zadnjih 7 dana (ukupno {totalBerths} vezova)</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {DAILY_DATA.map((day, index) => {
-                  const total = day.occupied + day.reserved + day.free;
-                  return (
-                    <div key={index} className="flex items-center gap-4">
-                      <div className="w-24 text-sm">
-                        {format(day.date, 'EEE, dd.MM', { locale: hr })}
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex h-6 rounded-full overflow-hidden bg-slate-200 dark:bg-slate-800">
-                          <div
-                            className="bg-green-500 flex items-center justify-center"
-                            style={{ width: `${(day.occupied / total) * 100}%` }}
-                          >
-                            <span className="text-[10px] text-white font-medium">{day.occupied}</span>
-                          </div>
-                          <div
-                            className="bg-yellow-500 flex items-center justify-center"
-                            style={{ width: `${(day.reserved / total) * 100}%` }}
-                          >
-                            <span className="text-[10px] text-white font-medium">{day.reserved}</span>
-                          </div>
-                          <div
-                            className="bg-gray-400 flex items-center justify-center"
-                            style={{ width: `${(day.free / total) * 100}%` }}
-                          >
-                            <span className="text-[10px] text-white font-medium">{day.free}</span>
+              {occupancyData.length > 0 ? (
+                <div className="space-y-4">
+                  {occupancyData.map((day, index) => {
+                    const total = day.occupied + day.reserved + day.free;
+                    const occupancyPercent = total > 0 ? Math.round((day.occupied / total) * 100) : 0;
+                    return (
+                      <div key={index} className="flex items-center gap-4">
+                        <div className="w-28 text-sm">
+                          {format(new Date(day.date), 'EEE, dd.MM', { locale: hr })}
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex h-6 rounded-full overflow-hidden bg-slate-200 dark:bg-slate-800">
+                            {day.occupied > 0 && (
+                              <div
+                                className="bg-green-500 flex items-center justify-center"
+                                style={{ width: `${total > 0 ? (day.occupied / total) * 100 : 0}%` }}
+                              >
+                                <span className="text-[10px] text-white font-medium">{day.occupied}</span>
+                              </div>
+                            )}
+                            {day.reserved > 0 && (
+                              <div
+                                className="bg-yellow-500 flex items-center justify-center"
+                                style={{ width: `${total > 0 ? (day.reserved / total) * 100 : 0}%` }}
+                              >
+                                <span className="text-[10px] text-white font-medium">{day.reserved}</span>
+                              </div>
+                            )}
+                            {day.free > 0 && (
+                              <div
+                                className="bg-gray-400 flex items-center justify-center"
+                                style={{ width: `${total > 0 ? (day.free / total) * 100 : 0}%` }}
+                              >
+                                <span className="text-[10px] text-white font-medium">{day.free}</span>
+                              </div>
+                            )}
                           </div>
                         </div>
+                        <div className="w-24 text-right text-sm">
+                          {occupancyPercent}% zauzeto
+                        </div>
                       </div>
-                      <div className="w-24 text-right text-sm">
-                        {Math.round((day.occupied / total) * 100)}% zauzeto
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-muted-foreground text-center py-4">Nema podataka o zauzetosti</p>
+              )}
 
               <div className="flex items-center justify-center gap-6 mt-6 pt-4 border-t">
                 <div className="flex items-center gap-2">
@@ -514,6 +508,9 @@ export default function ReportsPage() {
               </CardHeader>
               <CardContent>
                 <p className="text-2xl font-bold text-green-600">{formatCurrency(stats.collectedRevenue)}</p>
+                <p className="text-xs text-muted-foreground">
+                  {stats.totalRevenue > 0 ? Math.round((stats.collectedRevenue / stats.totalRevenue) * 100) : 0}% od ukupnog
+                </p>
               </CardContent>
             </Card>
             <Card>
@@ -529,23 +526,35 @@ export default function ReportsPage() {
           <Card>
             <CardHeader>
               <CardTitle>Prihod po vezu</CardTitle>
+              <CardDescription>Sortirano po ukupnom prihodu</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
-                {Object.entries(stats.byBerth)
-                  .sort((a, b) => b[1].revenue - a[1].revenue)
-                  .map(([berthCode, data]) => (
-                    <div key={berthCode} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded">
-                      <div>
-                        <p className="font-medium">Vez {berthCode}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {data.bookings} rezervacija • {data.nights} noćenja
-                        </p>
+              {Object.keys(stats.byBerth).length > 0 ? (
+                <div className="space-y-3">
+                  {Object.entries(stats.byBerth)
+                    .sort((a, b) => b[1].revenue - a[1].revenue)
+                    .slice(0, 20) // Top 20
+                    .map(([berthCode, data]) => (
+                      <div key={berthCode} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded">
+                        <div className="flex items-center gap-3">
+                          <Anchor className="h-4 w-4 text-blue-500" />
+                          <div>
+                            <p className="font-medium">Vez {berthCode}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {data.bookings} rezervacija
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-bold">{formatCurrency(data.revenue)}</p>
+                          <p className="text-sm text-green-600">{formatCurrency(data.paid)} plaćeno</p>
+                        </div>
                       </div>
-                      <p className="font-bold">{formatCurrency(data.revenue)}</p>
-                    </div>
-                  ))}
-              </div>
+                    ))}
+                </div>
+              ) : (
+                <p className="text-muted-foreground text-center py-4">Nema podataka o prihodima</p>
+              )}
             </CardContent>
           </Card>
 
@@ -554,75 +563,46 @@ export default function ReportsPage() {
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
                 <Euro className="w-5 h-5 text-yellow-500" />
-                Nenaplaćene rezervacije
+                Nenaplaćene rezervacije ({stats.pendingPayments.length})
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50 dark:bg-gray-800">
-                    <tr>
-                      <th className="px-3 py-2 text-left text-sm font-medium">Gost</th>
-                      <th className="px-3 py-2 text-left text-sm font-medium">Vez</th>
-                      <th className="px-3 py-2 text-left text-sm font-medium">Datum</th>
-                      <th className="px-3 py-2 text-right text-sm font-medium">Ukupno</th>
-                      <th className="px-3 py-2 text-right text-sm font-medium">Plaćeno</th>
-                      <th className="px-3 py-2 text-right text-sm font-medium">Dug</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y">
-                    {stats.pendingPayments.map((booking) => (
-                      <tr key={booking.id}>
-                        <td className="px-3 py-2">{booking.guestName}</td>
-                        <td className="px-3 py-2">{booking.berthCode}</td>
-                        <td className="px-3 py-2 text-sm">
-                          {formatDate(booking.checkInDate)} - {formatDate(booking.checkOutDate)}
-                        </td>
-                        <td className="px-3 py-2 text-right">{formatCurrency(booking.totalAmount)}</td>
-                        <td className="px-3 py-2 text-right text-green-600">{formatCurrency(booking.amountPaid)}</td>
-                        <td className="px-3 py-2 text-right font-bold text-red-600">
-                          {formatCurrency(booking.totalAmount - booking.amountPaid)}
-                        </td>
+              {stats.pendingPayments.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-50 dark:bg-gray-800">
+                      <tr>
+                        <th className="px-3 py-2 text-left text-sm font-medium">Vez</th>
+                        <th className="px-3 py-2 text-left text-sm font-medium">Gost</th>
+                        <th className="px-3 py-2 text-left text-sm font-medium">Period</th>
+                        <th className="px-3 py-2 text-right text-sm font-medium">Ukupno</th>
+                        <th className="px-3 py-2 text-right text-sm font-medium">Plaćeno</th>
+                        <th className="px-3 py-2 text-right text-sm font-medium">Dug</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Guests by Country */}
-        <TabsContent value="guests" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Gosti po državama</CardTitle>
-              <CardDescription>Distribucija gostiju i prihoda po zemlji porijekla</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {Object.entries(stats.byCountry)
-                  .sort((a, b) => b[1].revenue - a[1].revenue)
-                  .map(([country, data]) => {
-                    const percentage = Math.round((data.revenue / stats.totalRevenue) * 100);
-                    return (
-                      <div key={country} className="space-y-1">
-                        <div className="flex items-center justify-between">
-                          <span className="font-medium">{country}</span>
-                          <span className="text-sm text-muted-foreground">
-                            {data.count} gostiju • {formatCurrency(data.revenue)}
-                          </span>
-                        </div>
-                        <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-blue-500 rounded-full"
-                            style={{ width: `${percentage}%` }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-              </div>
+                    </thead>
+                    <tbody className="divide-y">
+                      {stats.pendingPayments
+                        .sort((a, b) => (b.total_amount - b.amount_paid) - (a.total_amount - a.amount_paid))
+                        .map((booking) => (
+                          <tr key={booking.id}>
+                            <td className="px-3 py-2 font-medium">{booking.berth_code}</td>
+                            <td className="px-3 py-2">{booking.guest_name}</td>
+                            <td className="px-3 py-2 text-sm">
+                              {formatDate(booking.check_in_date)} - {formatDate(booking.check_out_date)}
+                            </td>
+                            <td className="px-3 py-2 text-right">{formatCurrency(booking.total_amount)}</td>
+                            <td className="px-3 py-2 text-right text-green-600">{formatCurrency(booking.amount_paid)}</td>
+                            <td className="px-3 py-2 text-right font-bold text-red-600">
+                              {formatCurrency(booking.total_amount - booking.amount_paid)}
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="text-muted-foreground text-center py-4">Sve rezervacije su plaćene</p>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
