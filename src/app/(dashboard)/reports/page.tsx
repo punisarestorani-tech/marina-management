@@ -75,7 +75,7 @@ export default function ReportsPage() {
 
       setTotalBerths(berthCount || 0);
 
-      // Fetch daily occupancy for last 7 days
+      // Calculate daily occupancy for last 7 days based on berth_bookings
       const last7Days = eachDayOfInterval({
         start: subDays(new Date(), 6),
         end: new Date(),
@@ -86,14 +86,17 @@ export default function ReportsPage() {
       for (const day of last7Days) {
         const dateStr = day.toISOString().split('T')[0];
 
-        // Count occupied berths for this day
-        const { data: dayOccupancy } = await supabase
-          .from('daily_occupancy')
-          .select('status')
-          .eq('date', dateStr);
+        // Count bookings that overlap with this day
+        // A booking is active if: check_in_date <= dateStr AND check_out_date >= dateStr
+        const { data: dayBookings } = await supabase
+          .from('berth_bookings')
+          .select('berth_code, status')
+          .lte('check_in_date', dateStr)
+          .gte('check_out_date', dateStr)
+          .in('status', ['confirmed', 'checked_in', 'pending']);
 
-        const occupied = dayOccupancy?.filter(o => o.status === 'occupied').length || 0;
-        const reserved = dayOccupancy?.filter(o => o.status === 'reserved').length || 0;
+        const occupied = dayBookings?.filter(b => b.status === 'checked_in').length || 0;
+        const reserved = dayBookings?.filter(b => ['confirmed', 'pending'].includes(b.status)).length || 0;
         const free = (berthCount || 0) - occupied - reserved;
 
         occupancyResults.push({
