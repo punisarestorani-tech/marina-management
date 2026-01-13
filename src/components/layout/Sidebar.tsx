@@ -1,11 +1,13 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/stores/authStore';
-import { getNavItemsForRole, ROLE_LABELS } from '@/lib/auth/rbac';
+import { getNavItemsForRole, ROLE_LABELS, hasPermission } from '@/lib/auth/rbac';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { createClient } from '@/lib/supabase/client';
 import {
   Map,
   Anchor,
@@ -21,6 +23,7 @@ import {
   LogOut,
   Calendar,
   ClipboardCheck,
+  Wrench,
 } from 'lucide-react';
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -37,12 +40,46 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   scroll: ScrollText,
   calendar: Calendar,
   'clipboard-check': ClipboardCheck,
+  wrench: Wrench,
 };
 
 export function Sidebar() {
   const pathname = usePathname();
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
+  const [damageReportsCount, setDamageReportsCount] = useState(0);
+
+  // Fetch count of new damage reports (for managers and admins)
+  useEffect(() => {
+    if (!user || !hasPermission(user.role, 'VIEW_DAMAGE_REPORTS')) return;
+
+    const supabase = createClient();
+
+    const fetchCount = async () => {
+      const { count } = await supabase
+        .from('damage_reports')
+        .select('*', { count: 'exact', head: true })
+        .in('status', ['reported', 'acknowledged']);
+
+      setDamageReportsCount(count || 0);
+    };
+
+    fetchCount();
+
+    // Subscribe to real-time changes
+    const channel = supabase
+      .channel('damage_reports_count')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'damage_reports' },
+        () => fetchCount()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
 
   if (!user) return null;
 
@@ -83,6 +120,7 @@ export function Sidebar() {
           {navItems.map((item) => {
             const Icon = iconMap[item.icon] || Map;
             const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+            const showBadge = item.href === '/kvarovi' && damageReportsCount > 0;
 
             return (
               <li key={item.href}>
@@ -95,7 +133,14 @@ export function Sidebar() {
                       : 'text-slate-400 hover:bg-slate-800 hover:text-white'
                   )}
                 >
-                  <Icon className="h-5 w-5" />
+                  <div className="relative">
+                    <Icon className="h-5 w-5" />
+                    {showBadge && (
+                      <span className="absolute -top-2 -right-2 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
+                        {damageReportsCount > 9 ? '9+' : damageReportsCount}
+                      </span>
+                    )}
+                  </div>
                   {item.label}
                 </Link>
               </li>

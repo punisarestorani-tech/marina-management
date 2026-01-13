@@ -71,6 +71,9 @@ export const PERMISSIONS = {
   // Issue reporting
   REPORT_ISSUE: ['inspector', 'operator', 'manager', 'admin'] as UserRole[],
 
+  // Damage reports (Kvarovi) - only manager and admin can view all
+  VIEW_DAMAGE_REPORTS: ['manager', 'admin'] as UserRole[],
+
   // Admin
   MANAGE_USERS: ['admin'] as UserRole[],
   MANAGE_MARINA: ['admin'] as UserRole[],
@@ -93,6 +96,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: 'Mapa', href: '/map', icon: 'map', permission: 'VIEW_MAP' },
   { label: 'Vezovi', href: '/berths', icon: 'anchor', permission: 'VIEW_MAP' },
   { label: 'Prijavi problem', href: '/prijava-problema', icon: 'alert-circle', permission: 'REPORT_ISSUE' },
+  { label: 'Kvarovi', href: '/kvarovi', icon: 'wrench', permission: 'VIEW_DAMAGE_REPORTS' },
   { label: 'Rezervacije', href: '/bookings', icon: 'calendar', permission: 'VIEW_BOOKINGS' },
   { label: 'Plovila', href: '/vessels', icon: 'ship', permission: 'VIEW_VESSELS' },
   { label: 'Ugovori', href: '/contracts', icon: 'file-text', permission: 'VIEW_CONTRACTS' },
