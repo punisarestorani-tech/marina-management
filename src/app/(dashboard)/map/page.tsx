@@ -3,6 +3,7 @@
 import dynamic from 'next/dynamic';
 import { useState, useMemo, useEffect } from 'react';
 import { useAuthStore } from '@/stores/authStore';
+import { hasPermission } from '@/lib/auth/rbac';
 import { BerthMapData } from '@/types/database.types';
 import { BerthMarker } from '@/types/boat.types';
 import { BerthPanel, BerthMarkerPanel, OccupancyFormData, BerthInspectionPopup } from '@/components/map';
@@ -301,12 +302,13 @@ export default function MapPage() {
   const handleBerthMarkerClick = (marker: BerthMarker) => {
     if (berthMarkerMode) {
       setSelectedBerthMarker(marker);
-    } else {
-      // Open inspection popup for inspector
+    } else if (user && hasPermission(user.role, 'RECORD_INSPECTION')) {
+      // Open inspection popup only for users with RECORD_INSPECTION permission
       setInspectionBerth(marker);
       setSelectedBerthMarker(null);
       setSelectedBerth(null);
     }
+    // Majstor and others without RECORD_INSPECTION just view the map
   };
 
   const handleCloseBerthMarkerPanel = () => {

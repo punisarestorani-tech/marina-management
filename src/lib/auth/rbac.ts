@@ -37,6 +37,7 @@ export function isMajstor(role: UserRole): boolean {
 export const PERMISSIONS = {
   // Map & Berths
   VIEW_MAP: ['inspector', 'majstor', 'operator', 'manager', 'admin'] as UserRole[],
+  VIEW_BERTHS: ['inspector', 'operator', 'manager', 'admin'] as UserRole[],
   EDIT_BERTH_POLYGON: ['admin'] as UserRole[],
 
   // Occupancy
@@ -103,7 +104,7 @@ export interface NavItem {
 
 export const NAV_ITEMS: NavItem[] = [
   { label: 'Mapa', href: '/map', icon: 'map', permission: 'VIEW_MAP' },
-  { label: 'Vezovi', href: '/berths', icon: 'anchor', permission: 'VIEW_MAP' },
+  { label: 'Vezovi', href: '/berths', icon: 'anchor', permission: 'VIEW_BERTHS' },
   { label: 'Prijavi problem', href: '/prijava-problema', icon: 'alert-circle', permission: 'REPORT_ISSUE' },
   { label: 'Moji zadaci', href: '/moji-zadaci', icon: 'clipboard-check', permission: 'VIEW_ASSIGNED_TASKS' },
   { label: 'Kvarovi', href: '/kvarovi', icon: 'wrench', permission: 'VIEW_DAMAGE_REPORTS' },
