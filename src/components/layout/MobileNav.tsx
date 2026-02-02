@@ -70,22 +70,24 @@ export function MobileNav() {
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto py-4 px-3">
           <ul className="space-y-1">
-            {/* Dashboard link */}
-            <li>
-              <Link
-                href="/dashboard"
-                onClick={() => setOpen(false)}
-                className={cn(
-                  'flex items-center gap-3 rounded-lg px-3 py-3 text-sm transition-colors',
-                  pathname === '/dashboard'
-                    ? 'bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300'
-                    : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
-                )}
-              >
-                <BarChart3 className="h-5 w-5" />
-                Dashboard
-              </Link>
-            </li>
+            {/* Dashboard link - hide for majstor */}
+            {user.role !== 'majstor' && (
+              <li>
+                <Link
+                  href="/dashboard"
+                  onClick={() => setOpen(false)}
+                  className={cn(
+                    'flex items-center gap-3 rounded-lg px-3 py-3 text-sm transition-colors',
+                    pathname === '/dashboard'
+                      ? 'bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300'
+                      : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
+                  )}
+                >
+                  <BarChart3 className="h-5 w-5" />
+                  Dashboard
+                </Link>
+              </li>
+            )}
 
             {navItems.map((item) => {
               const Icon = iconMap[item.icon] || Map;

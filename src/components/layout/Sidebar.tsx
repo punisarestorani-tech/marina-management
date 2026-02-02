@@ -101,21 +101,23 @@ export function Sidebar() {
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-4 px-3">
         <ul className="space-y-1">
-          {/* Dashboard link */}
-          <li>
-            <Link
-              href="/dashboard"
-              className={cn(
-                'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors',
-                pathname === '/dashboard'
-                  ? 'bg-slate-800 text-white'
-                  : 'text-slate-400 hover:bg-slate-800 hover:text-white'
-              )}
-            >
-              <BarChart3 className="h-5 w-5" />
-              Dashboard
-            </Link>
-          </li>
+          {/* Dashboard link - hide for majstor */}
+          {user.role !== 'majstor' && (
+            <li>
+              <Link
+                href="/dashboard"
+                className={cn(
+                  'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors',
+                  pathname === '/dashboard'
+                    ? 'bg-slate-800 text-white'
+                    : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                )}
+              >
+                <BarChart3 className="h-5 w-5" />
+                Dashboard
+              </Link>
+            </li>
+          )}
 
           {navItems.map((item) => {
             const Icon = iconMap[item.icon] || Map;

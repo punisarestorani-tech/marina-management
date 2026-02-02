@@ -5,6 +5,7 @@ import { hasPermission } from '@/lib/auth/rbac';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   Anchor,
   Ship,
@@ -43,6 +44,7 @@ interface RecentActivity {
 }
 
 export default function DashboardPage() {
+  const router = useRouter();
   const user = useAuthStore((state) => state.user);
   const [isLoading, setIsLoading] = useState(true);
   const [stats, setStats] = useState<DashboardStats>({
@@ -56,6 +58,13 @@ export default function DashboardPage() {
   });
   const [pontoonOccupancy, setPontoonOccupancy] = useState<PontoonOccupancy[]>([]);
   const [recentActivities, setRecentActivities] = useState<RecentActivity[]>([]);
+
+  // Redirect majstor to their tasks page
+  useEffect(() => {
+    if (user?.role === 'majstor') {
+      router.replace('/moji-zadaci');
+    }
+  }, [user, router]);
 
   useEffect(() => {
     const loadDashboardData = async () => {

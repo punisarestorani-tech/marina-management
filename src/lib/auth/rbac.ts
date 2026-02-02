@@ -36,7 +36,7 @@ export function isMajstor(role: UserRole): boolean {
 // Permission definitions
 export const PERMISSIONS = {
   // Map & Berths
-  VIEW_MAP: ['inspector', 'operator', 'manager', 'admin'] as UserRole[],
+  VIEW_MAP: ['inspector', 'majstor', 'operator', 'manager', 'admin'] as UserRole[],
   EDIT_BERTH_POLYGON: ['admin'] as UserRole[],
 
   // Occupancy
@@ -74,7 +74,7 @@ export const PERMISSIONS = {
   RECORD_INSPECTION: ['inspector', 'operator', 'manager', 'admin'] as UserRole[],
 
   // Issue reporting
-  REPORT_ISSUE: ['inspector', 'operator', 'manager', 'admin'] as UserRole[],
+  REPORT_ISSUE: ['inspector', 'majstor', 'operator', 'manager', 'admin'] as UserRole[],
 
   // Damage reports (Kvarovi) - only manager and admin can view all
   VIEW_DAMAGE_REPORTS: ['manager', 'admin'] as UserRole[],
