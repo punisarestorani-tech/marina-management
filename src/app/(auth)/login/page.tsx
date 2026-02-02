@@ -11,7 +11,7 @@ import { Anchor, Loader2 } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
+  const [loginId, setLoginId] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -23,6 +23,10 @@ export default function LoginPage() {
 
     try {
       const supabase = getSupabaseClient();
+
+      // If loginId contains @, use it as email, otherwise append @marina.local
+      const email = loginId.includes('@') ? loginId : `${loginId.toLowerCase()}@marina.local`;
+
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -61,13 +65,13 @@ export default function LoginPage() {
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="loginId">Username ili Email</Label>
             <Input
-              id="email"
-              type="email"
-              placeholder="vas@email.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              id="loginId"
+              type="text"
+              placeholder="username ili email"
+              value={loginId}
+              onChange={(e) => setLoginId(e.target.value)}
               required
               disabled={isLoading}
             />
@@ -99,10 +103,7 @@ export default function LoginPage() {
         </form>
 
         <div className="mt-6 text-center text-sm text-muted-foreground">
-          <p>Demo pristup:</p>
-          <p className="mt-1">
-            Kreirajte korisnika u Supabase Auth sa odgovarajućom ulogom
-          </p>
+          <p>Prijavite se sa username-om ili email adresom</p>
         </div>
       </CardContent>
     </Card>

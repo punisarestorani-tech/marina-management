@@ -13,6 +13,7 @@ export type ViolationStatus = 'open' | 'resolved' | 'dismissed';
 
 export interface Profile {
   id: string;
+  username: string | null;
   full_name: string;
   role: UserRole;
   phone: string | null;

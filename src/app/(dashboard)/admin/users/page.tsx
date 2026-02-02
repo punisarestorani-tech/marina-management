@@ -28,13 +28,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Search, UserPlus, Shield, Phone, Mail, Loader2 } from 'lucide-react';
+import { Search, UserPlus, Shield, Phone, Mail, Loader2, User } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { ROLE_LABELS } from '@/lib/auth/rbac';
 import { getSupabaseClient } from '@/lib/supabase/client';
 
 interface User {
   id: string;
+  username?: string;
   full_name: string;
   email?: string;
   phone?: string;
@@ -64,6 +65,7 @@ export default function UsersPage() {
 
   // Form state for editing
   const [editForm, setEditForm] = useState({
+    username: '',
     full_name: '',
     phone: '',
     role: '',
@@ -72,6 +74,7 @@ export default function UsersPage() {
 
   // Form state for new user
   const [newUserForm, setNewUserForm] = useState({
+    username: '',
     email: '',
     password: '',
     full_name: '',
@@ -107,18 +110,28 @@ export default function UsersPage() {
 
   // Create new user
   const handleCreateUser = async () => {
-    if (!newUserForm.email || !newUserForm.password || !newUserForm.full_name) {
-      alert('Popuni sva obavezna polja!');
+    if (!newUserForm.username || !newUserForm.password || !newUserForm.full_name) {
+      alert('Popuni sva obavezna polja (username, lozinka, ime)!');
       return;
     }
+
+    // Validate username format
+    if (!/^[a-z0-9._-]+$/i.test(newUserForm.username)) {
+      alert('Username može sadržati samo slova, brojeve, tačke, crtice i donje crte!');
+      return;
+    }
+
     setIsCreating(true);
 
     try {
       const supabase = getSupabaseClient();
 
+      // Use provided email or generate from username
+      const email = newUserForm.email || `${newUserForm.username.toLowerCase()}@marina.local`;
+
       // Create user with Supabase Auth
       const { data, error } = await supabase.auth.signUp({
-        email: newUserForm.email,
+        email: email,
         password: newUserForm.password,
         options: {
           data: {
@@ -134,13 +147,14 @@ export default function UsersPage() {
       }
 
       if (data.user) {
-        // Update profile with phone if provided
-        if (newUserForm.phone) {
-          await supabase
-            .from('profiles')
-            .update({ phone: newUserForm.phone })
-            .eq('id', data.user.id);
-        }
+        // Update profile with username and phone
+        await supabase
+          .from('profiles')
+          .update({
+            username: newUserForm.username.toLowerCase(),
+            phone: newUserForm.phone || null,
+          })
+          .eq('id', data.user.id);
 
         // Reload users
         const { data: updatedUsers } = await supabase
@@ -152,9 +166,15 @@ export default function UsersPage() {
           setUsers(updatedUsers);
         }
 
-        alert('Korisnik kreiran! Email za potvrdu je poslan na ' + newUserForm.email);
+        if (newUserForm.email) {
+          alert('Korisnik kreiran! Email za potvrdu je poslan na ' + newUserForm.email);
+        } else {
+          alert('Korisnik "' + newUserForm.username + '" je kreiran! Može se prijaviti sa username-om.');
+        }
+
         setIsAddDialogOpen(false);
         setNewUserForm({
+          username: '',
           email: '',
           password: '',
           full_name: '',
@@ -173,6 +193,7 @@ export default function UsersPage() {
   const handleEdit = (user: User) => {
     setEditingUser(user);
     setEditForm({
+      username: user.username || '',
       full_name: user.full_name,
       phone: user.phone || '',
       role: user.role,
@@ -191,6 +212,7 @@ export default function UsersPage() {
       const { error } = await supabase
         .from('profiles')
         .update({
+          username: editForm.username || null,
           full_name: editForm.full_name,
           phone: editForm.phone || null,
           role: editForm.role,
@@ -221,6 +243,7 @@ export default function UsersPage() {
   const filteredUsers = users.filter((user) => {
     const matchesSearch =
       user.full_name.toLowerCase().includes(search.toLowerCase()) ||
+      (user.username?.toLowerCase() || '').includes(search.toLowerCase()) ||
       (user.email?.toLowerCase() || '').includes(search.toLowerCase());
     const matchesRole = filterRole === 'all' || user.role === filterRole;
     return matchesSearch && matchesRole;
@@ -259,14 +282,16 @@ export default function UsersPage() {
             </DialogHeader>
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="new_email">Email *</Label>
+                <Label htmlFor="new_username">Username *</Label>
                 <Input
-                  id="new_email"
-                  type="email"
-                  value={newUserForm.email}
-                  onChange={(e) => setNewUserForm({ ...newUserForm, email: e.target.value })}
-                  placeholder="korisnik@email.com"
+                  id="new_username"
+                  value={newUserForm.username}
+                  onChange={(e) => setNewUserForm({ ...newUserForm, username: e.target.value })}
+                  placeholder="npr. majstor1"
                 />
+                <p className="text-xs text-muted-foreground">
+                  Koristi se za prijavu. Samo slova, brojevi, tačke i crtice.
+                </p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="new_password">Lozinka *</Label>
@@ -286,6 +311,19 @@ export default function UsersPage() {
                   onChange={(e) => setNewUserForm({ ...newUserForm, full_name: e.target.value })}
                   placeholder="Ime Prezime"
                 />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="new_email">Email (opciono)</Label>
+                <Input
+                  id="new_email"
+                  type="email"
+                  value={newUserForm.email}
+                  onChange={(e) => setNewUserForm({ ...newUserForm, email: e.target.value })}
+                  placeholder="korisnik@email.com"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Ako se ne unese, generise se automatski.
+                </p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="new_phone">Telefon</Label>
@@ -353,7 +391,7 @@ export default function UsersPage() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Pretraži po imenu ili emailu..."
+                placeholder="Pretraži po imenu, username-u ili emailu..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-9"
@@ -404,7 +442,17 @@ export default function UsersPage() {
               <TableBody>
                 {filteredUsers.map((user) => (
                   <TableRow key={user.id}>
-                    <TableCell className="font-medium">{user.full_name}</TableCell>
+                    <TableCell>
+                      <div>
+                        <p className="font-medium">{user.full_name}</p>
+                        {user.username && (
+                          <p className="text-xs text-muted-foreground flex items-center gap-1">
+                            <User className="h-3 w-3" />
+                            {user.username}
+                          </p>
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell>
                       <div className="space-y-1">
                         {user.email && (
@@ -460,6 +508,15 @@ export default function UsersPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit_username">Username</Label>
+              <Input
+                id="edit_username"
+                value={editForm.username}
+                onChange={(e) => setEditForm({ ...editForm, username: e.target.value })}
+                placeholder="npr. majstor1"
+              />
+            </div>
             <div className="space-y-2">
               <Label htmlFor="edit_fullName">Ime i prezime</Label>
               <Input
