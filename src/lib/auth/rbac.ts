@@ -1,11 +1,12 @@
 import { UserRole } from '@/types/database.types';
 
-// Role hierarchy: admin > manager > operator > inspector
+// Role hierarchy: admin > manager > operator > majstor > inspector
 const ROLE_HIERARCHY: Record<UserRole, number> = {
   inspector: 1,
-  operator: 2,
-  manager: 3,
-  admin: 4,
+  majstor: 2,
+  operator: 3,
+  manager: 4,
+  admin: 5,
 };
 
 export function hasMinimumRole(userRole: UserRole, requiredRole: UserRole): boolean {
@@ -26,6 +27,10 @@ export function isManager(role: UserRole): boolean {
 
 export function isAdmin(role: UserRole): boolean {
   return role === 'admin';
+}
+
+export function isMajstor(role: UserRole): boolean {
+  return role === 'majstor' || hasMinimumRole(role, 'majstor');
 }
 
 // Permission definitions
@@ -74,6 +79,10 @@ export const PERMISSIONS = {
   // Damage reports (Kvarovi) - only manager and admin can view all
   VIEW_DAMAGE_REPORTS: ['manager', 'admin'] as UserRole[],
 
+  // Majstor assigned tasks
+  VIEW_ASSIGNED_TASKS: ['majstor', 'manager', 'admin'] as UserRole[],
+  COMPLETE_ASSIGNED_TASKS: ['majstor', 'manager', 'admin'] as UserRole[],
+
   // Admin
   MANAGE_USERS: ['admin'] as UserRole[],
   MANAGE_MARINA: ['admin'] as UserRole[],
@@ -96,6 +105,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: 'Mapa', href: '/map', icon: 'map', permission: 'VIEW_MAP' },
   { label: 'Vezovi', href: '/berths', icon: 'anchor', permission: 'VIEW_MAP' },
   { label: 'Prijavi problem', href: '/prijava-problema', icon: 'alert-circle', permission: 'REPORT_ISSUE' },
+  { label: 'Moji zadaci', href: '/moji-zadaci', icon: 'clipboard-check', permission: 'VIEW_ASSIGNED_TASKS' },
   { label: 'Kvarovi', href: '/kvarovi', icon: 'wrench', permission: 'VIEW_DAMAGE_REPORTS' },
   { label: 'Rezervacije', href: '/bookings', icon: 'calendar', permission: 'VIEW_BOOKINGS' },
   { label: 'Plovila', href: '/vessels', icon: 'ship', permission: 'VIEW_VESSELS' },
@@ -115,6 +125,7 @@ export function getNavItemsForRole(role: UserRole): NavItem[] {
 // Role display names
 export const ROLE_LABELS: Record<UserRole, string> = {
   inspector: 'Inspektor (Teren)',
+  majstor: 'Majstor (Tehnika)',
   operator: 'Operater (Naplata)',
   manager: 'Menadžer (Ugovori)',
   admin: 'Administrator',

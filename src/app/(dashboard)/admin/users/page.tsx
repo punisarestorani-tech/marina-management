@@ -46,6 +46,7 @@ interface User {
 
 const ROLE_COLORS: Record<string, string> = {
   inspector: 'bg-blue-500',
+  majstor: 'bg-teal-500',
   operator: 'bg-purple-500',
   manager: 'bg-orange-500',
   admin: 'bg-red-500',
@@ -303,6 +304,7 @@ export default function UsersPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="inspector">Inspektor (Teren)</SelectItem>
+                    <SelectItem value="majstor">Majstor (Tehnika)</SelectItem>
                     <SelectItem value="operator">Operater (Naplata)</SelectItem>
                     <SelectItem value="manager">Menadžer (Ugovori)</SelectItem>
                     <SelectItem value="admin">Administrator</SelectItem>
@@ -364,6 +366,7 @@ export default function UsersPage() {
               <SelectContent>
                 <SelectItem value="all">Sve uloge</SelectItem>
                 <SelectItem value="inspector">Inspektor</SelectItem>
+                <SelectItem value="majstor">Majstor</SelectItem>
                 <SelectItem value="operator">Operater</SelectItem>
                 <SelectItem value="manager">Menadžer</SelectItem>
                 <SelectItem value="admin">Administrator</SelectItem>
@@ -482,6 +485,7 @@ export default function UsersPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="inspector">Inspektor (Teren)</SelectItem>
+                  <SelectItem value="majstor">Majstor (Tehnika)</SelectItem>
                   <SelectItem value="operator">Operater (Naplata)</SelectItem>
                   <SelectItem value="manager">Menadžer (Ugovori)</SelectItem>
                   <SelectItem value="admin">Administrator</SelectItem>

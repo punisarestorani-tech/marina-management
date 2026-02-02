@@ -94,6 +94,7 @@ export interface DamageReport {
   assigned_to?: string;
   assigned_to_name?: string;
   resolution_notes?: string;
+  completion_photo_urls?: string[];
   completed_by?: string;
   completed_at?: string;
   reported_by?: string;

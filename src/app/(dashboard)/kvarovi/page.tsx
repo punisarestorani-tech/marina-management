@@ -13,7 +13,9 @@ import {
   X,
   Eye,
   User,
+  UserPlus,
 } from 'lucide-react';
+import { AssignTechnicianDialog } from '@/components/damage-reports/AssignTechnicianDialog';
 import { getSupabaseClient } from '@/lib/supabase/client';
 import { ClickableImage } from '@/components/ui/image-lightbox';
 import { useAuthStore } from '@/stores/authStore';
@@ -29,6 +31,8 @@ interface DamageReport {
   status: string;
   photo_urls?: string[];
   reported_by_name: string;
+  assigned_to?: string;
+  assigned_to_name?: string;
   created_at: string;
   updated_at: string;
 }
@@ -79,6 +83,8 @@ export default function KvaroviPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState<'active' | 'all'>('active');
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [assignDialogOpen, setAssignDialogOpen] = useState(false);
+  const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
 
   const loadReports = async () => {
     try {
@@ -306,6 +312,12 @@ export default function KvaroviPage() {
                     <span>
                       Lokacija: {report.location_description}
                     </span>
+                    {report.assigned_to_name && (
+                      <span className="flex items-center gap-1 text-blue-600 font-medium">
+                        <Wrench className="h-3 w-3" />
+                        Majstor: {report.assigned_to_name}
+                      </span>
+                    )}
                   </div>
 
                   {/* Actions */}
@@ -344,6 +356,20 @@ export default function KvaroviPage() {
                               Započni rad
                             </>
                           )}
+                        </Button>
+                      )}
+                      {(report.status === 'reported' || report.status === 'acknowledged') && !report.assigned_to && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-blue-600 border-blue-600 hover:bg-blue-50"
+                          onClick={() => {
+                            setSelectedReportId(report.id);
+                            setAssignDialogOpen(true);
+                          }}
+                        >
+                          <UserPlus className="h-4 w-4 mr-1" />
+                          Dodijeli majstoru
                         </Button>
                       )}
                       <Button
@@ -386,6 +412,17 @@ export default function KvaroviPage() {
           ))}
         </div>
       )}
+
+      {/* Assign Technician Dialog */}
+      <AssignTechnicianDialog
+        isOpen={assignDialogOpen}
+        onClose={() => {
+          setAssignDialogOpen(false);
+          setSelectedReportId(null);
+        }}
+        reportId={selectedReportId || ''}
+        onAssigned={loadReports}
+      />
     </div>
   );
 }

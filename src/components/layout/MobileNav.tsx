@@ -16,10 +16,14 @@ import {
   FileText,
   CreditCard,
   AlertTriangle,
+  AlertCircle,
   BarChart3,
   Users,
   Settings,
   ScrollText,
+  Calendar,
+  ClipboardCheck,
+  Wrench,
 } from 'lucide-react';
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -29,10 +33,14 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   'file-text': FileText,
   'credit-card': CreditCard,
   'alert-triangle': AlertTriangle,
+  'alert-circle': AlertCircle,
   'bar-chart': BarChart3,
   users: Users,
   settings: Settings,
   scroll: ScrollText,
+  calendar: Calendar,
+  'clipboard-check': ClipboardCheck,
+  wrench: Wrench,
 };
 
 export function MobileNav() {

@@ -1,7 +1,7 @@
 // Database Types for Marina Management System
 // These types should be regenerated from Supabase after running migrations
 
-export type UserRole = 'inspector' | 'operator' | 'manager' | 'admin';
+export type UserRole = 'inspector' | 'majstor' | 'operator' | 'manager' | 'admin';
 export type BerthStatus = 'active' | 'inactive' | 'maintenance';
 export type OccupancyStatus = 'occupied' | 'free' | 'reserved';
 export type VesselType = 'sailboat' | 'motorboat' | 'yacht' | 'catamaran' | 'other';
